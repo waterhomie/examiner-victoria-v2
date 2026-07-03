@@ -1,60 +1,42 @@
-﻿import { useEffect, useRef, useState } from "react";
-import {
-  buildReport,
-  fetchPracticeOptions,
-  healthCheck,
-  sendTelemetryEvent,
-  sendAnswer,
-  startSession,
-} from "./api.js";
-import { DEFAULT_SETTINGS, PRACTICE_TYPES, STORAGE_KEY, TRAINING_MODES } from "./config/appConfig.js";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { AnswerComposer } from "./components/layout/AnswerComposer.jsx";
 import { ChatPanel } from "./components/layout/ChatPanel.jsx";
 import { ExamHeader } from "./components/layout/ExamHeader.jsx";
 import { ExamStageCard } from "./components/layout/ExamStageCard.jsx";
 import { MobileToasts } from "./components/layout/MobileToasts.jsx";
-import { buildPracticeRecordText, buildTranscriptText, downloadTextFile } from "./utils/downloads.js";
-import { friendlyError } from "./utils/errors.js";
-import { formatDuration, safeDateStamp } from "./utils/format.js";
-import { busyLabel, phaseLabel } from "./utils/labels.js";
-import { loadSavedSession, saveSessionSnapshot } from "./utils/sessionStorage.js";
-import {
-  getSessionStats,
-  getStageDescription,
-  getStageProgress,
-  hasStageControls,
-  shouldShowCueCardSelect,
-  shouldShowPart1TopicSelect,
-} from "./utils/sessionView.js";
+import { PRACTICE_TYPES, STORAGE_KEY, TRAINING_MODES } from "./config/appConfig.js";
 import {
   useAutoScrollToLatest,
+  useFrontendErrorTelemetry,
   usePagehideCleanup,
   usePrepCountdown,
 } from "./hooks/useBrowserEffects.js";
 import { useAnswerRecording } from "./hooks/useAnswerRecording.js";
+import { useExamController } from "./hooks/useExamController.js";
 import { useSpeechPlayback } from "./hooks/useSpeechPlayback.js";
+import { appReducer } from "./state/appReducer.js";
+import { busySet, draftSet, errorSet, modeSet, sessionRestored, storageReadySet } from "./state/actions.js";
+import { createInitialAppState } from "./state/initialState.js";
+import { selectCapabilities, selectMessages, selectSessionView } from "./state/selectors.js";
+import { formatDuration } from "./utils/format.js";
+import { busyLabel, phaseLabel } from "./utils/labels.js";
+import { saveSessionSnapshot } from "./utils/sessionStorage.js";
 
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState("voice");
-  const [reviewBeforeSend, setReviewBeforeSend] = useState(false);
-  const [busy, setBusy] = useState("starting");
-  const [error, setError] = useState("");
-  const [report, setReport] = useState("");
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [trainingMode, setTrainingMode] = useState("practice");
-  const [practiceType, setPracticeType] = useState("full");
-  const [practiceOptions, setPracticeOptions] = useState({ part1_topics: [], cue_cards: [] });
-  const [selectedPart1Topic, setSelectedPart1Topic] = useState("");
-  const [selectedCueCardTitle, setSelectedCueCardTitle] = useState("");
-  const [healthInfo, setHealthInfo] = useState(null);
-  const [storageReady, setStorageReady] = useState(false);
-  const [prepEndsAt, setPrepEndsAt] = useState(null);
-  const [clockTick, setClockTick] = useState(Date.now());
+  const [state, dispatch] = useReducer(appReducer, undefined, createInitialAppState);
   const chatPanelRef = useRef(null);
   const bottomRef = useRef(null);
   const startupRecoveryAttemptedRef = useRef(false);
+  const submitAnswerRef = useRef(null);
+
+  const setBusy = useCallback((busy) => dispatch(busySet(busy)), []);
+  const setDraft = useCallback((draft) => dispatch(draftSet(draft)), []);
+  const setError = useCallback((error) => dispatch(errorSet(error)), []);
+  const setMode = useCallback((mode) => dispatch(modeSet(mode)), []);
+  const submitAnswerFromRecording = useCallback(
+    (...args) => submitAnswerRef.current?.(...args),
+    [],
+  );
 
   const {
     clearPendingSpeech,
@@ -63,7 +45,11 @@ export default function App() {
     playSpeech,
     unlockAudio,
     stopCurrentAudio,
-  } = useSpeechPlayback({ audioEnabled, setError });
+  } = useSpeechPlayback({
+    audioEnabled: state.audioEnabled,
+    onErrorChange: setError,
+  });
+
   const {
     canRetryRecording,
     cleanupRecording,
@@ -73,469 +59,208 @@ export default function App() {
     retryLastRecording,
     toggleRecording,
   } = useAnswerRecording({
-    busy,
-    reviewBeforeSend,
-    setBusy,
-    setDraft,
-    setError,
-    setMode,
-    submitAnswer,
+    busy: state.busy,
+    onBusyChange: setBusy,
+    onDraftChange: setDraft,
+    onErrorChange: setError,
+    onModeChange: setMode,
+    reviewBeforeSend: state.reviewBeforeSend,
+    submitAnswer: submitAnswerFromRecording,
   });
 
-  const messages = session?.messages || [];
-  const currentPhase = phaseLabel(session?.phase);
-  const isPracticeMode = trainingMode === "practice";
-  const canAnswer = Boolean(session?.test_active) && !busy && !recording;
-  const canStartRecording = Boolean(session?.test_active) && !busy;
-  const canScoreNow = Boolean(session?.candidate_answers?.some((item) => item.phase !== "identity")) && !busy;
-  const canExportRecord = Boolean(session?.candidate_answers?.length) && !busy;
-  const recordButtonDisabled = recording ? false : !canStartRecording;
-  const recordButtonText = !session
+  const capabilities = selectCapabilities(state, recording);
+  const controller = useExamController({
+    canAnswer: capabilities.canAnswer,
+    clearPendingSpeech,
+    dispatch,
+    playSpeech,
+    resetRecording,
+    state,
+    stopCurrentAudio,
+    unlockAudio,
+  });
+  submitAnswerRef.current = controller.submitAnswer;
+
+  const messages = selectMessages(state);
+  const currentPhase = phaseLabel(state.session?.phase);
+  const sessionView = selectSessionView(state);
+  const recordButtonDisabled = recording ? false : !capabilities.canStartRecording;
+  const recordButtonText = !state.session
     ? "Starting..."
-    : session.test_active
+    : state.session.test_active
       ? recording
         ? "Tap to send"
         : "Tap to record"
       : "Test complete";
-  const prepRemaining = prepEndsAt
-    ? Math.max(0, Math.ceil((prepEndsAt - clockTick) / 1000))
-    : 0;
-
-  const stageProgress = getStageProgress(session?.phase);
-  const sessionStats = getSessionStats(session);
-
-  const configWarning = healthInfo?.config?.api_key_configured === false
-    ? "Preview mode: the backend is running, but API_KEY is not configured. You can inspect the interface and type answers, but AI replies, transcription, TTS, and scoring need the backend API key."
-    : "";
-  const stageDescription = getStageDescription(isPracticeMode);
-  const showPart1TopicSelect = shouldShowPart1TopicSelect(practiceType, practiceOptions);
-  const showCueCardSelect = shouldShowCueCardSelect(practiceType, practiceOptions);
-  const hasVisibleStageControls = hasStageControls({
-    prepRemaining,
-    showPart1TopicSelect,
-    showCueCardSelect,
-  });
-  const hasUserAnswers = sessionStats.answered > 0;
-  const stageSelectionIsSettled =
-    (showPart1TopicSelect && (Boolean(selectedPart1Topic) || hasUserAnswers)) ||
-    (showCueCardSelect && (Boolean(selectedCueCardTitle) || hasUserAnswers));
-  const shouldShowStageCard = hasVisibleStageControls && (prepRemaining > 0 || !stageSelectionIsSettled);
 
   useEffect(() => {
     let restored = false;
-    const saved = loadSavedSession(STORAGE_KEY);
+    const saved = controller.restoreSavedSession();
     if (saved?.session?.messages?.length) {
-      setSession(saved.session);
-      setReport(saved.report || "");
-      setAudioEnabled(saved.audioEnabled ?? true);
-      setTrainingMode(saved.trainingMode || (saved.session.practice_mode ? "practice" : "mock"));
-      setPracticeType(saved.practiceType || saved.session.practice_type || "full");
-      setSelectedPart1Topic(saved.selectedPart1Topic || "");
-      setSelectedCueCardTitle(saved.selectedCueCardTitle || "");
-      setReviewBeforeSend(Boolean(saved.reviewBeforeSend));
-      if (saved.prepEndsAt && saved.prepEndsAt > Date.now()) {
-        setPrepEndsAt(saved.prepEndsAt);
-      }
+      dispatch(sessionRestored(saved));
       restored = true;
     }
-    setStorageReady(true);
+    dispatch(storageReadySet(true));
     if (!restored) {
-      createFreshSession();
-    } else {
-      setBusy("");
+      void controller.createFreshSession();
     }
     return () => {
       cleanupRecording();
       stopCurrentAudio();
     };
+    // Run once for startup wiring; the controller uses the initial settings here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    healthCheck()
-      .then((health) => {
-        if (!cancelled) {
-          setHealthInfo(health);
-        }
-      })
-      .catch(() => {
-        // createFreshSession also performs a health check; this is only for restored sessions.
-      });
-    fetchPracticeOptions()
-      .then((options) => {
-        if (!cancelled) {
-          setPracticeOptions({
-            part1_topics: options.part1_topics || [],
-            cue_cards: options.cue_cards || [],
-          });
-        }
-      })
-      .catch(() => {
-        // Practice can still start with random topics if the option endpoint is unavailable.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void controller.loadBackendStatus();
+  }, [controller.loadBackendStatus]);
 
   useEffect(() => {
-    if (!storageReady || session || busy || startupRecoveryAttemptedRef.current) return;
+    if (!state.storageReady || state.session || state.busy || startupRecoveryAttemptedRef.current) return;
     startupRecoveryAttemptedRef.current = true;
-    createFreshSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, session, storageReady]);
+    void controller.createFreshSession();
+  }, [controller.createFreshSession, state.busy, state.session, state.storageReady]);
 
   useEffect(() => {
-    if (!storageReady) return;
+    if (!state.storageReady) return;
     saveSessionSnapshot(
       STORAGE_KEY,
-      session
+      state.session
         ? {
-            session,
-            report,
-            audioEnabled,
-            trainingMode,
-            practiceType,
-            selectedPart1Topic,
-            selectedCueCardTitle,
-            reviewBeforeSend,
-            prepEndsAt,
+            session: state.session,
+            report: state.report,
+            audioEnabled: state.audioEnabled,
+            trainingMode: state.trainingMode,
+            practiceType: state.practiceType,
+            selectedPart1Topic: state.selectedPart1Topic,
+            selectedCueCardTitle: state.selectedCueCardTitle,
+            reviewBeforeSend: state.reviewBeforeSend,
+            prepEndsAt: state.prepEndsAt,
           }
         : null,
     );
   }, [
-    audioEnabled,
-    trainingMode,
-    practiceType,
-    prepEndsAt,
-    report,
-    reviewBeforeSend,
-    selectedCueCardTitle,
-    selectedPart1Topic,
-    session,
-    storageReady,
+    state.audioEnabled,
+    state.practiceType,
+    state.prepEndsAt,
+    state.report,
+    state.reviewBeforeSend,
+    state.selectedCueCardTitle,
+    state.selectedPart1Topic,
+    state.session,
+    state.storageReady,
+    state.trainingMode,
   ]);
 
-  useAutoScrollToLatest(chatPanelRef, bottomRef, [messages.length, busy, report]);
-  usePrepCountdown(prepEndsAt, setPrepEndsAt, setClockTick);
-  usePagehideCleanup(() => {
-    stopCurrentAudio();
-  });
+  useAutoScrollToLatest(chatPanelRef, bottomRef, [messages.length, state.busy, state.report]);
+  usePrepCountdown(state.prepEndsAt, controller.setPrepEndsAt, controller.setClockTick);
+  usePagehideCleanup(stopCurrentAudio);
+  useFrontendErrorTelemetry();
 
-  useEffect(() => {
-    function handleWindowError(event) {
-      sendTelemetryEvent("frontend-error", {
-        message: event.message || "window error",
-        source: event.filename || "",
-        line: event.lineno || 0,
-        column: event.colno || 0,
-      });
-    }
-
-    function handleUnhandledRejection(event) {
-      sendTelemetryEvent("frontend-error", {
-        message: String(event.reason?.message || event.reason || "unhandled rejection"),
-      });
-    }
-
-    window.addEventListener("error", handleWindowError);
-    window.addEventListener("unhandledrejection", handleUnhandledRejection);
-    return () => {
-      window.removeEventListener("error", handleWindowError);
-      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
-    };
-  }, []);
-
-  async function createFreshSession(
-    nextPracticeType = practiceType,
-    nextPart1Topic = selectedPart1Topic,
-    nextCueCardTitle = selectedCueCardTitle,
-    nextTrainingMode = trainingMode,
-  ) {
-    stopCurrentAudio();
-    clearPendingSpeech();
-    resetRecording();
-    const nextIsPracticeMode = nextTrainingMode === "practice";
-    setTrainingMode(nextTrainingMode);
-    setPracticeType(nextPracticeType);
-    setSelectedPart1Topic(nextPart1Topic);
-    setSelectedCueCardTitle(nextCueCardTitle);
-    setSession(null);
-    setError("");
-    setReport("");
-    setDraft("");
-    setPrepEndsAt(null);
-    setBusy("starting");
-    try {
-      const health = await healthCheck();
-      setHealthInfo(health);
-      const data = await startSession({
-        ...DEFAULT_SETTINGS,
-        practice_mode: nextIsPracticeMode,
-        answer_expansion_mode: nextIsPracticeMode,
-        practice_type: nextPracticeType,
-        part1_topic: nextPart1Topic || null,
-        cue_card_title: nextCueCardTitle || null,
-      });
-      setSession(data.session);
-      setAudioEnabled(data.session.voice_playback_enabled);
-      if (data.session.phase === "part2_long") {
-        const endsAt = Date.now() + 60_000;
-        setClockTick(Date.now());
-        setPrepEndsAt(endsAt);
-      }
-    } catch (err) {
-      setError(friendlyError(err, "Failed to start session."));
-    } finally {
-      setBusy("");
-    }
-  }
-
-  function toggleAudioEnabled() {
-    setAudioEnabled((value) => {
-      if (value) {
-        stopCurrentAudio();
-        clearPendingSpeech();
-      }
-      return !value;
-    });
-  }
-
-  function changePracticeType(event) {
-    const nextPracticeType = event.target.value;
-    if (nextPracticeType === practiceType && session) return;
-    createFreshSession(nextPracticeType, selectedPart1Topic, selectedCueCardTitle, trainingMode);
-  }
-
-  function changeTrainingMode(event) {
-    const nextTrainingMode = event.target.value;
-    if (nextTrainingMode === trainingMode && session) return;
-    createFreshSession(practiceType, selectedPart1Topic, selectedCueCardTitle, nextTrainingMode);
-  }
-
-  function changePart1Topic(event) {
-    const nextTopic = event.target.value;
-    setSelectedPart1Topic(nextTopic);
-    createFreshSession(practiceType, nextTopic, selectedCueCardTitle, trainingMode);
-  }
-
-  function changeCueCardTitle(event) {
-    const nextTitle = event.target.value;
-    setSelectedCueCardTitle(nextTitle);
-    createFreshSession(practiceType, selectedPart1Topic, nextTitle, trainingMode);
-  }
-
-  function resetComposerAfterAnswer() {
-    setDraft("");
-    resetRecording();
-  }
-
-  async function submitAnswer(answer, source = "text", duration = null, options = {}) {
-    const cleaned = answer.trim();
-    if (!cleaned || !session) return;
-    const answerStartedAt = Date.now();
-    const answerPhase = session.phase;
-    setError("");
-    setBusy("thinking");
-    setReport("");
-    setPrepEndsAt(null);
-    if (!options.audioPrepared) {
-      stopCurrentAudio();
-    }
-    clearPendingSpeech();
-    resetComposerAfterAnswer();
-    try {
-      const data = await sendAnswer({
-        session,
-        answer: cleaned,
-        source,
-        duration,
-      });
-      sendTelemetryEvent("answer", {
-        durationMs: Date.now() - answerStartedAt,
-        source,
-        answerDuration: duration || 0,
-        phase: answerPhase,
-        messageCount: session.messages?.length || 0,
-      });
-      setSession(data.session);
-      if (data.start_prep_timer) {
-        const endsAt = Date.now() + 60_000;
-        setClockTick(Date.now());
-        setPrepEndsAt(endsAt);
-      }
-      setBusy("");
-      void playSpeech(data.spoken_text);
-    } catch (err) {
-      sendTelemetryEvent("answer-error", {
-        durationMs: Date.now() - answerStartedAt,
-        source,
-        answerDuration: duration || 0,
-        phase: answerPhase,
-        message: String(err?.message || err),
-      });
-      setError(friendlyError(err, "Victoria could not respond."));
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function submitTypedAnswer(event) {
-    event?.preventDefault();
-    stopCurrentAudio();
-    unlockAudio();
-    await submitAnswer(draft, "text", null, { audioPrepared: true });
-  }
-
-  function handleTextComposerKeyDown(event) {
-    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) return;
-    event.preventDefault();
-    if (draft.trim() && canAnswer) {
-      stopCurrentAudio();
-      unlockAudio();
-      void submitAnswer(draft, "text", null, { audioPrepared: true });
-    }
-  }
-
-  function handleToggleRecording() {
+  const handleToggleRecording = useCallback(() => {
     if (!recording) {
       stopCurrentAudio();
     }
     unlockAudio();
     void toggleRecording();
-  }
-
-  async function requestReport() {
-    if (!session) return;
-    setError("");
-    stopCurrentAudio();
-    setBusy("report");
-    try {
-      const data = await buildReport(session);
-      setReport(data.report);
-    } catch (err) {
-      setError(friendlyError(err, "Report could not be generated."));
-    } finally {
-      setBusy("");
-    }
-  }
-
-  function downloadReport() {
-    if (!report) return;
-    downloadTextFile(`examiner-victoria-report-${safeDateStamp()}.txt`, report);
-  }
-
-  function downloadTranscript() {
-    if (!session) return;
-    downloadTextFile(`examiner-victoria-transcript-${safeDateStamp()}.txt`, buildTranscriptText(session));
-  }
-
-  function downloadPracticeRecord() {
-    if (!session) return;
-    downloadTextFile(
-      `examiner-victoria-practice-record-${safeDateStamp()}.txt`,
-      buildPracticeRecordText(session, report),
-    );
-  }
+  }, [recording, stopCurrentAudio, toggleRecording, unlockAudio]);
 
   return (
     <div className="app-shell">
       <ExamHeader
-        audioEnabled={audioEnabled}
-        busy={busy}
-        canExportRecord={canExportRecord}
-        canScoreNow={canScoreNow}
-        changePracticeType={changePracticeType}
-        changeTrainingMode={changeTrainingMode}
-        createFreshSession={createFreshSession}
+        audioEnabled={state.audioEnabled}
+        busy={state.busy}
+        canExportRecord={capabilities.canExportRecord}
+        canScoreNow={capabilities.canScoreNow}
+        changePracticeType={controller.changePracticeType}
+        changeTrainingMode={controller.changeTrainingMode}
+        createFreshSession={controller.createFreshSession}
         currentPhase={currentPhase}
-        downloadPracticeRecord={downloadPracticeRecord}
-        isPracticeMode={isPracticeMode}
-        practiceType={practiceType}
+        downloadPracticeRecord={controller.downloadPracticeRecord}
+        isPracticeMode={sessionView.isPracticeMode}
+        practiceType={state.practiceType}
         practiceTypes={PRACTICE_TYPES}
         recording={recording}
-        requestReport={requestReport}
-        session={session}
-        sessionStats={sessionStats}
-        stageProgress={stageProgress}
-        toggleAudioEnabled={toggleAudioEnabled}
-        trainingMode={trainingMode}
+        requestReport={controller.requestReport}
+        session={state.session}
+        sessionStats={sessionView.sessionStats}
+        stageProgress={sessionView.stageProgress}
+        toggleAudioEnabled={controller.toggleAudioEnabled}
+        trainingMode={state.trainingMode}
         trainingModes={TRAINING_MODES}
       />
-      {shouldShowStageCard ? (
+      {sessionView.shouldShowStageCard ? (
         <ExamStageCard
-          busy={busy}
-          changeCueCardTitle={changeCueCardTitle}
-          changePart1Topic={changePart1Topic}
+          busy={state.busy}
+          changeCueCardTitle={controller.changeCueCardTitle}
+          changePart1Topic={controller.changePart1Topic}
           currentPhase={currentPhase}
           formatDuration={formatDuration}
-          hasStageControls={hasVisibleStageControls}
-          isPracticeMode={isPracticeMode}
-          practiceOptions={practiceOptions}
-          prepRemaining={prepRemaining}
+          hasStageControls={sessionView.hasVisibleStageControls}
+          isPracticeMode={sessionView.isPracticeMode}
+          practiceOptions={state.practiceOptions}
+          prepRemaining={sessionView.prepRemaining}
           recording={recording}
-          selectedCueCardTitle={selectedCueCardTitle}
-          selectedPart1Topic={selectedPart1Topic}
-          session={session}
-          sessionStats={sessionStats}
-          showCueCardSelect={showCueCardSelect}
-          showPart1TopicSelect={showPart1TopicSelect}
-          stageDescription={stageDescription}
-          stageProgress={stageProgress}
+          selectedCueCardTitle={state.selectedCueCardTitle}
+          selectedPart1Topic={state.selectedPart1Topic}
+          session={state.session}
+          sessionStats={sessionView.sessionStats}
+          showCueCardSelect={sessionView.showCueCardSelect}
+          showPart1TopicSelect={sessionView.showPart1TopicSelect}
+          stageDescription={sessionView.stageDescription}
+          stageProgress={sessionView.stageProgress}
         />
       ) : null}
 
       <ChatPanel
         bottomRef={bottomRef}
-        busy={busy}
+        busy={state.busy}
         busyLabel={busyLabel}
         canRetryRecording={canRetryRecording}
         chatPanelRef={chatPanelRef}
-        configWarning={configWarning}
-        downloadPracticeRecord={downloadPracticeRecord}
-        downloadReport={downloadReport}
-        downloadTranscript={downloadTranscript}
-        error={error}
+        configWarning={sessionView.configWarning}
+        downloadPracticeRecord={controller.downloadPracticeRecord}
+        downloadReport={controller.downloadReport}
+        downloadTranscript={controller.downloadTranscript}
+        error={state.error}
         messages={messages}
         pendingSpeechUrl={pendingSpeechUrl}
         playPendingSpeech={playPendingSpeech}
-        report={report}
+        report={state.report}
         retryLastRecording={retryLastRecording}
       />
 
       <MobileToasts
-        busy={busy}
+        busy={state.busy}
         busyLabel={busyLabel}
         canRetryRecording={canRetryRecording}
-        error={error}
+        error={state.error}
         pendingSpeechUrl={pendingSpeechUrl}
         playPendingSpeech={playPendingSpeech}
         retryLastRecording={retryLastRecording}
       />
 
       <AnswerComposer
-        busy={busy}
-        canAnswer={canAnswer}
-        draft={draft}
+        busy={state.busy}
+        canAnswer={capabilities.canAnswer}
+        draft={state.draft}
         elapsed={elapsed}
         formatDuration={formatDuration}
-        handleTextComposerKeyDown={handleTextComposerKeyDown}
-        mode={mode}
+        handleTextComposerKeyDown={controller.handleTextComposerKeyDown}
+        mode={state.mode}
+        onDraftChange={controller.setDraft}
+        onModeToggle={controller.toggleInputMode}
+        onReviewBeforeSendChange={controller.setReviewBeforeSend}
         recordButtonDisabled={recordButtonDisabled}
         recordButtonText={recordButtonText}
         recording={recording}
-        requestReport={requestReport}
-        reviewBeforeSend={reviewBeforeSend}
-        session={session}
-        setDraft={setDraft}
-        setMode={setMode}
-        setReviewBeforeSend={setReviewBeforeSend}
-        submitTypedAnswer={submitTypedAnswer}
+        requestReport={controller.requestReport}
+        reviewBeforeSend={state.reviewBeforeSend}
+        session={state.session}
+        submitTypedAnswer={controller.submitTypedAnswer}
         toggleRecording={handleToggleRecording}
       />
     </div>
   );
 }
-
-

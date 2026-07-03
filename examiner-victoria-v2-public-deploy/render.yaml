@@ -28,3 +28,7 @@ services:
         value: "1200"
       - key: TTS_CACHE_MAX_ITEMS
         value: "64"
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: TELEMETRY_MAX_EVENTS
+        value: "500"

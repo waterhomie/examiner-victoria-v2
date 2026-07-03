@@ -5,8 +5,10 @@ from collections import defaultdict, deque
 from statistics import mean, median
 from typing import Any
 
+from .core import config
 
-MAX_TELEMETRY_EVENTS = 500
+
+MAX_TELEMETRY_EVENTS = config.TELEMETRY_MAX_EVENTS
 MAX_RECENT_EVENTS = 40
 SENSITIVE_DETAIL_KEYS = {
     "answer",

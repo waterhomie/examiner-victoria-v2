@@ -30,11 +30,25 @@ $requiredStructureFiles = @(
     ".\v2\frontend\src\components\messages\MessageViews.jsx",
     ".\v2\frontend\src\hooks\useAnswerRecording.js",
     ".\v2\frontend\src\hooks\useBrowserEffects.js",
+    ".\v2\frontend\src\hooks\useExamController.js",
     ".\v2\frontend\src\hooks\useSpeechPlayback.js",
+    ".\v2\frontend\src\state\actions.js",
+    ".\v2\frontend\src\state\appReducer.js",
+    ".\v2\frontend\src\state\initialState.js",
+    ".\v2\frontend\src\state\selectors.js",
     ".\v2\frontend\src\utils\sessionView.js",
     ".\v2\frontend\src\styles.css",
+    ".\v2\frontend\src\styles\base.css",
+    ".\v2\frontend\src\styles\header.css",
+    ".\v2\frontend\src\styles\stage.css",
+    ".\v2\frontend\src\styles\chat.css",
+    ".\v2\frontend\src\styles\report.css",
+    ".\v2\frontend\src\styles\composer.css",
     ".\v2\frontend\src\styles\mobile.css",
     ".\v2\backend\app.py",
+    ".\v2\backend\core\config.py",
+    ".\v2\backend\core\payload_limits.py",
+    ".\v2\backend\core\rate_limit.py",
     ".\v2\backend\engine.py",
     ".\v2\backend\ai_provider.py",
     ".\v2\backend\audio_services.py",
@@ -43,6 +57,12 @@ $requiredStructureFiles = @(
     ".\v2\backend\part3_service.py",
     ".\v2\backend\question_bank_service.py",
     ".\v2\backend\report_service.py",
+    ".\v2\backend\routes\answer.py",
+    ".\v2\backend\routes\audio.py",
+    ".\v2\backend\routes\health.py",
+    ".\v2\backend\routes\report.py",
+    ".\v2\backend\routes\sessions.py",
+    ".\v2\backend\routes\telemetry.py",
     ".\v2\backend\schemas.py"
 )
 foreach ($structureFile in $requiredStructureFiles) {
@@ -52,8 +72,13 @@ foreach ($structureFile in $requiredStructureFiles) {
 }
 
 $appLineCount = (Get-Content -LiteralPath ".\v2\frontend\src\App.jsx").Count
-if ($appLineCount -gt 650) {
+if ($appLineCount -gt 360) {
     throw "App.jsx has grown to $appLineCount lines. Keep App.jsx as a coordinator and move UI/detail logic into components, hooks, or utils."
+}
+
+$backendAppLineCount = (Get-Content -LiteralPath ".\v2\backend\app.py").Count
+if ($backendAppLineCount -gt 180) {
+    throw "backend/app.py has grown to $backendAppLineCount lines. Keep it as an app factory, router mount, and static frontend shell."
 }
 
 $engineLineCount = (Get-Content -LiteralPath ".\v2\backend\engine.py").Count
@@ -70,15 +95,53 @@ if ($stylesImportIndex -lt 0 -or $mobileStylesImportIndex -lt 0 -or $stylesImpor
 
 $desktopStyles = Get-Content -LiteralPath ".\v2\frontend\src\styles.css" -Raw
 $mobileStyles = Get-Content -LiteralPath ".\v2\frontend\src\styles\mobile.css" -Raw
-if ($desktopStyles -match "@media\s*\(max-width:\s*620px\)") {
-    throw "Phone breakpoint rules should live in v2/frontend/src/styles/mobile.css, not styles.css."
+$requiredStyleImports = @(
+    '@import "./styles/base.css";',
+    '@import "./styles/header.css";',
+    '@import "./styles/stage.css";',
+    '@import "./styles/chat.css";',
+    '@import "./styles/report.css";',
+    '@import "./styles/composer.css";'
+)
+foreach ($styleImport in $requiredStyleImports) {
+    if (-not $desktopStyles.Contains($styleImport)) {
+        throw "styles.css must remain a shared CSS entrypoint and import: $styleImport"
+    }
+}
+$nonMobileStyleFiles = Get-ChildItem -LiteralPath ".\v2\frontend\src\styles" -Filter "*.css" -File |
+    Where-Object { $_.Name -ne "mobile.css" }
+foreach ($styleFile in $nonMobileStyleFiles) {
+    $styleText = Get-Content -LiteralPath $styleFile.FullName -Raw
+    if ($styleText -match "@media\s*\(max-width:\s*620px\)") {
+        throw "Phone breakpoint rules should live in v2/frontend/src/styles/mobile.css, not $($styleFile.Name)."
+    }
 }
 if ($mobileStyles -notmatch "@media\s*\(max-width:\s*620px\)") {
     throw "styles/mobile.css should contain the phone breakpoint rules."
 }
 
+$frontendSourceFiles = Get-ChildItem -LiteralPath ".\v2\frontend\src" -Recurse -File |
+    Where-Object { $_.Extension -in @(".js", ".jsx") -and $_.Name -ne "api.js" }
+foreach ($frontendFile in $frontendSourceFiles) {
+    $frontendText = Get-Content -LiteralPath $frontendFile.FullName -Raw
+    if ($frontendText -match "\bfetch\s*\(") {
+        throw "Frontend API calls must go through v2/frontend/src/api.js, but fetch() appears in $($frontendFile.FullName)."
+    }
+}
+
+$backendServiceFiles = Get-ChildItem -LiteralPath ".\v2\backend" -Filter "*_service.py" -File
+foreach ($serviceFile in $backendServiceFiles) {
+    $serviceText = Get-Content -LiteralPath $serviceFile.FullName -Raw
+    if ($serviceText -match "from\s+fastapi|import\s+fastapi") {
+        throw "Backend service modules must not depend on FastAPI: $($serviceFile.Name)"
+    }
+}
+
 Invoke-V2Native $python -m py_compile `
     .\v2\backend\ai_provider.py `
+    .\v2\backend\core\config.py `
+    .\v2\backend\core\payload_limits.py `
+    .\v2\backend\core\rate_limit.py `
     .\v2\backend\audio_services.py `
     .\v2\backend\exam_flow_service.py `
     .\v2\backend\feedback_service.py `
@@ -87,6 +150,12 @@ Invoke-V2Native $python -m py_compile `
     .\v2\backend\report_service.py `
     .\v2\backend\schemas.py `
     .\v2\backend\engine.py `
+    .\v2\backend\routes\answer.py `
+    .\v2\backend\routes\audio.py `
+    .\v2\backend\routes\health.py `
+    .\v2\backend\routes\report.py `
+    .\v2\backend\routes\sessions.py `
+    .\v2\backend\routes\telemetry.py `
     .\v2\backend\app.py `
     .\v2\backend\smoke_test.py `
     .\question_bank.py `
@@ -106,7 +175,8 @@ $scriptFiles = @(
     ".\v2\scripts\stop_local_stack.ps1",
     ".\v2\scripts\check_deployed_v2.ps1",
     ".\v2\scripts\check_deploy_config.ps1",
-    ".\v2\scripts\prepare_public_deploy_bundle.ps1"
+    ".\v2\scripts\prepare_public_deploy_bundle.ps1",
+    ".\v2\scripts\sync_public_deploy_github.ps1"
 )
 foreach ($scriptFile in $scriptFiles) {
     $tokens = $null

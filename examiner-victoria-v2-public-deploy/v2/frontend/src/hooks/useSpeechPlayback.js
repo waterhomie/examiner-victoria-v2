@@ -8,7 +8,7 @@ const MAX_SPEECH_CACHE_ITEMS = 24;
 const SILENT_WAV_DATA_URI =
   "data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 
-export function useSpeechPlayback({ audioEnabled, setError }) {
+export function useSpeechPlayback({ audioEnabled, onErrorChange }) {
   const [pendingSpeechUrl, setPendingSpeechUrl] = useState("");
   const [pendingSpeechText, setPendingSpeechText] = useState("");
   const audioRef = useRef(null);
@@ -142,7 +142,7 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
         await playAudioUrl(url);
       } catch (err) {
         if (!url) {
-          setError(
+          onErrorChange(
             friendlyError(
               err,
               "Voice playback is temporarily unavailable. You can continue with the visible text.",
@@ -164,16 +164,16 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
         setPendingSpeechText(text);
 
         if (!/play|autoplay|notallowed/i.test(err?.message || "")) {
-          setError("Victoria's voice is ready, but the browser needs a tap before it can play.");
+          onErrorChange("Victoria's voice is ready, but the browser needs a tap before it can play.");
         }
       }
     },
-    [audioEnabled, clearPendingSpeech, getSpeechBlob, playAudioUrl, setError, stopCurrentAudio],
+    [audioEnabled, clearPendingSpeech, getSpeechBlob, onErrorChange, playAudioUrl, stopCurrentAudio],
   );
 
   const playPendingSpeech = useCallback(async () => {
     if (!pendingSpeechUrl) return;
-    setError("");
+    onErrorChange("");
     stopCurrentAudio();
     const url = pendingSpeechUrl;
     const text = pendingSpeechText;
@@ -186,9 +186,9 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
       pendingSpeechUrlRef.current = url;
       setPendingSpeechUrl(url);
       setPendingSpeechText(text);
-      setError("Audio still could not play. Please check Safari's sound mode and tap Play Victoria again.");
+      onErrorChange("Audio still could not play. Please check Safari's sound mode and tap Play Victoria again.");
     }
-  }, [pendingSpeechText, pendingSpeechUrl, playAudioUrl, setError, stopCurrentAudio]);
+  }, [onErrorChange, pendingSpeechText, pendingSpeechUrl, playAudioUrl, stopCurrentAudio]);
 
   return {
     clearPendingSpeech,

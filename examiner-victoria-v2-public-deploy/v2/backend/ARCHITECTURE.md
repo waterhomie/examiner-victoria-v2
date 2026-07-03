@@ -9,8 +9,40 @@ details, question-bank data, audio services, and report generation in one file.
 ```text
 v2/backend/
   app.py
-    FastAPI routes, request limits, rate limiting, upload validation, static
-    frontend serving, and API error boundaries.
+    FastAPI app factory, CORS middleware, route mounting, static frontend
+    serving, and the Railway-compatible `v2.backend.app:app` entrypoint.
+
+  core/
+    config.py
+      Central environment parsing for API provider settings, CORS, limits,
+      telemetry capacity, and admin-token status.
+
+    rate_limit.py
+      Request rate limiting shared by API routes.
+
+    payload_limits.py
+      Shared answer/session payload limit validation.
+
+  routes/
+    health.py
+      `/api/health`, `/api/question-bank`, and `/api/practice-options`.
+
+    sessions.py
+      `/api/sessions` session start route.
+
+    answer.py
+      `/api/answer` answer-processing route.
+
+    audio.py
+      `/api/transcribe` and `/api/tts`, including upload validation and safe
+      provider error boundaries.
+
+    report.py
+      `/api/report` final-report route.
+
+    telemetry.py
+      `/api/telemetry` anonymous event intake and protected
+      `/api/telemetry/summary`.
 
   schemas.py
     Pydantic request, response, message, answer-stat, and session models.
@@ -24,8 +56,8 @@ v2/backend/
     clarification handling, and phase transitions.
 
   ai_provider.py
-    Local env loading, API key/base URL/model configuration, OpenAI-compatible
-    client creation, and chat model calls.
+    OpenAI-compatible client creation and chat model calls. Environment
+    parsing lives in `core/config.py`.
 
   audio_services.py
     Audio transcription, TTS generation, TTS text cleanup, and in-memory TTS
@@ -57,7 +89,11 @@ v2/backend/
 
 ## Where to change common backend behavior
 
-- API limits, route errors, static frontend serving: `app.py`.
+- App factory, route mounting, and static frontend serving: `app.py`.
+- Environment variables and runtime limits: `core/config.py`.
+- Rate limiting: `core/rate_limit.py`.
+- Payload size/session size rules: `core/payload_limits.py`.
+- API route request/response boundaries: `routes/`.
 - Session fields or API payload shape: `schemas.py`.
 - IELTS flow, phase transitions, or Part 3 turn count: `exam_flow_service.py`.
 - Answer logging, current-question updates, or reply assembly: `engine.py`.
@@ -68,8 +104,20 @@ v2/backend/
 - Cue cards, Part 1 topic choices, question-bank counts: `question_bank_service.py`.
 - Final report format or scoring-summary fallback: `report_service.py`.
 - Mobile performance monitoring or telemetry summaries: `telemetry_service.py`
-  plus the `/api/telemetry` routes in `app.py`.
+  plus the `/api/telemetry` routes in `routes/telemetry.py`.
 - Smoke-test scenarios: `smoke_test.py`.
+
+## Guardrails
+
+- Business service modules should not import FastAPI. Keep FastAPI request,
+  header, status-code, and response concerns inside `routes/` or `core/`.
+- `app.py` should stay small. New API endpoints belong in `routes/`, then get
+  mounted from `create_app()`.
+- New environment variables should be parsed in `core/config.py` and mirrored
+  in `v2/backend/.env.example`, `deploy/vps/.env.example`, and deployment
+  templates where relevant.
+- `/api/telemetry` may accept anonymous performance metadata, but
+  `/api/telemetry/summary` must stay protected by `ADMIN_TOKEN`.
 
 ## Refactor-plan vocabulary
 

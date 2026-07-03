@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-import v2.backend.app as app_module
+import v2.backend.core.config as config
+import v2.backend.core.rate_limit as rate_limit
 import v2.backend.exam_flow_service as exam_flow_service
 import v2.backend.feedback_service as feedback_service
 import v2.backend.part3_service as part3_service
 import v2.backend.report_service as report_service
+import v2.backend.routes.audio as audio_routes
 from v2.backend.app import app
 from v2.backend.engine import build_fallback_report, build_session_learning_summary
 from v2.backend.schemas import ExamSession
@@ -58,14 +60,14 @@ def install_deterministic_ai_stubs() -> dict[str, object]:
         "part3_call_model": part3_service.call_model,
         "report_call_model": report_service.call_model,
         "exam_flow_call_model": exam_flow_service.call_model,
-        "rate_limit": app_module.RATE_LIMIT_PER_MINUTE,
+        "rate_limit": config.RATE_LIMIT_PER_MINUTE,
     }
     feedback_service.call_model = deterministic_call_model
     part3_service.call_model = deterministic_call_model
     report_service.call_model = deterministic_call_model
     exam_flow_service.call_model = deterministic_call_model
-    app_module.RATE_LIMIT_PER_MINUTE = 0
-    app_module.REQUEST_LOG.clear()
+    config.RATE_LIMIT_PER_MINUTE = 0
+    rate_limit.clear_rate_limit_log()
     return originals
 
 
@@ -74,8 +76,8 @@ def restore_deterministic_ai_stubs(originals: dict[str, object]) -> None:
     part3_service.call_model = originals["part3_call_model"]
     report_service.call_model = originals["report_call_model"]
     exam_flow_service.call_model = originals["exam_flow_call_model"]
-    app_module.RATE_LIMIT_PER_MINUTE = originals["rate_limit"]
-    app_module.REQUEST_LOG.clear()
+    config.RATE_LIMIT_PER_MINUTE = originals["rate_limit"]
+    rate_limit.clear_rate_limit_log()
 
 
 def start_api_session(client: TestClient, **overrides) -> dict:
@@ -229,6 +231,38 @@ def main() -> None:
     chosen_topic = options["part1_topics"][0]
     chosen_card = options["cue_cards"][0]["title"]
 
+    telemetry_event = client.post(
+        "/api/telemetry",
+        json={
+            "event": "answer_flow",
+            "details": {
+                "durationMs": 123,
+                "answer": "Sensitive spoken answer should not be stored.",
+                "text": "Sensitive transcript should not be stored.",
+                "surface": "mobile",
+            },
+        },
+    )
+    assert telemetry_event.status_code == 204, telemetry_event.text
+
+    original_admin_token = config.ADMIN_TOKEN
+    try:
+        config.ADMIN_TOKEN = "smoke-admin-token"
+        blocked_summary = client.get("/api/telemetry/summary")
+        assert blocked_summary.status_code == 403, blocked_summary.text
+        telemetry_summary = client.get("/api/telemetry/summary?token=smoke-admin-token")
+        assert telemetry_summary.status_code == 200, telemetry_summary.text
+        summary_payload = telemetry_summary.json()
+        assert summary_payload["total_events"] >= 1, summary_payload
+        assert summary_payload["by_event"]["answer_flow"]["count"] >= 1, summary_payload
+        recent_details = summary_payload["recent"][-1]["details"]
+        assert recent_details["durationMs"] == 123, recent_details
+        assert recent_details["surface"] == "mobile", recent_details
+        assert "answer" not in recent_details, recent_details
+        assert "text" not in recent_details, recent_details
+    finally:
+        config.ADMIN_TOKEN = original_admin_token
+
     oversized_audio = client.post(
         "/api/transcribe",
         files={"file": ("answer.wav", b"0" * (13 * 1024 * 1024), "audio/wav")},
@@ -241,12 +275,12 @@ def main() -> None:
     )
     assert tiny_audio.status_code == 400, tiny_audio.text
 
-    original_transcribe_audio = app_module.transcribe_audio
+    original_transcribe_audio = audio_routes.transcribe_audio
     try:
         def broken_transcribe_audio(_audio_bytes: bytes, _mime_type: str) -> str:
             raise RuntimeError("provider duration parse failed: internal detail")
 
-        app_module.transcribe_audio = broken_transcribe_audio
+        audio_routes.transcribe_audio = broken_transcribe_audio
         failed_audio = client.post(
             "/api/transcribe",
             files={"file": ("answer.wav", b"0" * 4096, "audio/wav")},
@@ -256,24 +290,24 @@ def main() -> None:
         assert "internal detail" not in failed_detail, failed_detail
         assert "temporarily unavailable" in failed_detail, failed_detail
     finally:
-        app_module.transcribe_audio = original_transcribe_audio
+        audio_routes.transcribe_audio = original_transcribe_audio
 
-    too_long_tts = client.post("/api/tts", json={"text": "a" * (app_module.MAX_TTS_CHARS + 1)})
+    too_long_tts = client.post("/api/tts", json={"text": "a" * (config.MAX_TTS_CHARS + 1)})
     assert too_long_tts.status_code == 413, too_long_tts.text
 
-    original_synthesize_speech = app_module.synthesize_speech
+    original_synthesize_speech = audio_routes.synthesize_speech
     try:
         def broken_synthesize_speech(_text: str) -> bytes:
             raise RuntimeError("provider voice error: internal detail")
 
-        app_module.synthesize_speech = broken_synthesize_speech
+        audio_routes.synthesize_speech = broken_synthesize_speech
         failed_tts = client.post("/api/tts", json={"text": "Hello"})
         assert failed_tts.status_code == 502, failed_tts.text
         failed_tts_detail = failed_tts.json()["detail"]
         assert "internal detail" not in failed_tts_detail, failed_tts_detail
         assert "temporarily unavailable" in failed_tts_detail, failed_tts_detail
     finally:
-        app_module.synthesize_speech = original_synthesize_speech
+        audio_routes.synthesize_speech = original_synthesize_speech
 
     start = client.post(
         "/api/sessions",
@@ -339,7 +373,7 @@ def main() -> None:
         "/api/answer",
         json={
             "session": session,
-            "answer": "a" * (app_module.MAX_ANSWER_CHARS + 1),
+            "answer": "a" * (config.MAX_ANSWER_CHARS + 1),
             "source": "text",
             "duration": None,
         },
@@ -347,7 +381,7 @@ def main() -> None:
     assert too_long_answer.status_code == 413, too_long_answer.text
 
     too_large_session = dict(session)
-    too_large_session["messages"] = session["messages"] * (app_module.MAX_SESSION_MESSAGES + 1)
+    too_large_session["messages"] = session["messages"] * (config.MAX_SESSION_MESSAGES + 1)
     too_large_report = client.post("/api/report", json={"session": too_large_session})
     assert too_large_report.status_code == 413, too_large_report.text
 
@@ -418,10 +452,10 @@ def main() -> None:
     assert "Next-session focus" in summary_text, summary_text
 
     restore_deterministic_ai_stubs(originals)
-    app_module.REQUEST_LOG.clear()
-    original_rate_limit = app_module.RATE_LIMIT_PER_MINUTE
+    rate_limit.clear_rate_limit_log()
+    original_rate_limit = config.RATE_LIMIT_PER_MINUTE
     try:
-        app_module.RATE_LIMIT_PER_MINUTE = 1
+        config.RATE_LIMIT_PER_MINUTE = 1
         first_limited = client.post(
             "/api/sessions",
             json={
@@ -441,8 +475,8 @@ def main() -> None:
         )
         assert second_limited.status_code == 429, second_limited.text
     finally:
-        app_module.RATE_LIMIT_PER_MINUTE = original_rate_limit
-        app_module.REQUEST_LOG.clear()
+        config.RATE_LIMIT_PER_MINUTE = original_rate_limit
+        rate_limit.clear_rate_limit_log()
 
     print("V2 FastAPI smoke test passed")
     print(f"phase: {session['phase']}")

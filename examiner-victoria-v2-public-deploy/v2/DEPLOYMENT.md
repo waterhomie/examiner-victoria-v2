@@ -56,6 +56,8 @@ MAX_ANSWER_CHARS=4000
 MAX_SESSION_MESSAGES=120
 MAX_TTS_CHARS=1200
 TTS_CACHE_MAX_ITEMS=64
+ADMIN_TOKEN=replace-with-a-long-random-token
+TELEMETRY_MAX_EVENTS=500
 ```
 
 For the first one-service test, `CORS_ORIGINS=*` is acceptable because the
@@ -127,7 +129,30 @@ powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deployed_v2.ps1 
 ```
 
 This checks health, API-key presence, CORS, question-bank counts, practice
-options, a core session/answer API flow, and frontend HTML.
+options, telemetry summary protection, a core session/answer API flow, and
+frontend HTML.
+
+To also verify the protected telemetry summary payload, pass your private admin
+token:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deployed_v2.ps1 `
+  -BackendUrl "https://your-public-domain" `
+  -FrontendUrl "https://your-public-domain" `
+  -AdminToken "your-admin-token"
+```
+
+For GitHub-to-Railway sync, use the dry-run first:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\sync_public_deploy_github.ps1
+```
+
+Only push after the dry-run looks right:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\sync_public_deploy_github.ps1 -Push
+```
 
 ## Phone test order
 

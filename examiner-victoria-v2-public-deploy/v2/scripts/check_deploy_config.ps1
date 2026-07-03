@@ -20,6 +20,8 @@ $requiredFiles = @(
     ".\deploy\vps\.env.example",
     ".\deploy\vps\README.md",
     ".\v2\scripts\prepare_public_deploy_bundle.ps1",
+    ".\v2\scripts\sync_public_deploy_github.ps1",
+    ".\v2\backend\.env.example",
     ".\v2\backend\requirements.txt",
     ".\v2\frontend\package.json",
     ".\v2\frontend\pnpm-lock.yaml"
@@ -55,7 +57,7 @@ if ($railway.deploy.healthcheckPath -ne "/api/health") {
 }
 
 $renderYaml = Get-Content -LiteralPath ".\render.yaml" -Raw
-foreach ($marker in @("env: docker", "dockerfilePath: ./Dockerfile", "healthCheckPath: /api/health", "API_KEY")) {
+foreach ($marker in @("env: docker", "dockerfilePath: ./Dockerfile", "healthCheckPath: /api/health", "API_KEY", "ADMIN_TOKEN", "TELEMETRY_MAX_EVENTS")) {
     if (-not $renderYaml.Contains($marker)) {
         throw "render.yaml is missing expected marker: $marker"
     }
@@ -75,6 +77,13 @@ foreach ($marker in @("examiner-victoria-v2-public-deploy.zip", "Test-ShouldIncl
     }
 }
 
+$syncScript = Get-Content -LiteralPath ".\v2\scripts\sync_public_deploy_github.ps1" -Raw
+foreach ($marker in @("param(", "-Push", "Dry run complete", "gh auth status", "examiner-victoria-v2-public-deploy", "git push")) {
+    if (-not $syncScript.Contains($marker)) {
+        throw "sync_public_deploy_github.ps1 is missing expected marker: $marker"
+    }
+}
+
 $compose = Get-Content -LiteralPath ".\deploy\vps\docker-compose.yml" -Raw
 foreach ($marker in @("services:", "app:", "caddy:", "dockerfile: Dockerfile", "80:80", "443:443", "caddy_data")) {
     if (-not $compose.Contains($marker)) {
@@ -89,8 +98,15 @@ foreach ($marker in @('email {$ACME_EMAIL}', '{$DOMAIN}', "reverse_proxy app:808
     }
 }
 
+$backendEnvExample = Get-Content -LiteralPath ".\v2\backend\.env.example" -Raw
+foreach ($marker in @("API_KEY=", "BASE_URL=", "MODEL=", "TRANSCRIPTION_MODEL=", "ADMIN_TOKEN=", "TELEMETRY_MAX_EVENTS=")) {
+    if (-not $backendEnvExample.Contains($marker)) {
+        throw "v2/backend/.env.example is missing expected marker: $marker"
+    }
+}
+
 $vpsEnvExample = Get-Content -LiteralPath ".\deploy\vps\.env.example" -Raw
-foreach ($marker in @("DOMAIN=", "ACME_EMAIL=", "API_KEY=", "CORS_ORIGINS=https://")) {
+foreach ($marker in @("DOMAIN=", "ACME_EMAIL=", "API_KEY=", "CORS_ORIGINS=https://", "ADMIN_TOKEN=", "TELEMETRY_MAX_EVENTS=")) {
     if (-not $vpsEnvExample.Contains($marker)) {
         throw "deploy/vps/.env.example is missing expected marker: $marker"
     }

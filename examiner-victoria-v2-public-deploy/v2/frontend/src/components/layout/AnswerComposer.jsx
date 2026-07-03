@@ -6,15 +6,15 @@ export function AnswerComposer({
   formatDuration,
   handleTextComposerKeyDown,
   mode,
+  onDraftChange,
+  onModeToggle,
+  onReviewBeforeSendChange,
   recordButtonDisabled,
   recordButtonText,
   recording,
   requestReport,
   reviewBeforeSend,
   session,
-  setDraft,
-  setMode,
-  setReviewBeforeSend,
   submitTypedAnswer,
   toggleRecording,
 }) {
@@ -26,7 +26,7 @@ export function AnswerComposer({
           type="button"
           data-testid="composer-mode-toggle"
           disabled={Boolean(busy) || recording || !session?.test_active}
-          onClick={() => setMode((value) => (value === "voice" ? "text" : "voice"))}
+          onClick={onModeToggle}
           aria-label={mode === "voice" ? "Switch to text input" : "Switch to voice input"}
         >
           {mode === "voice" ? "Text" : "Voice"}
@@ -51,7 +51,7 @@ export function AnswerComposer({
                 data-testid="review-before-send-checkbox"
                 type="checkbox"
                 checked={reviewBeforeSend}
-                onChange={(event) => setReviewBeforeSend(event.target.checked)}
+                onChange={(event) => onReviewBeforeSendChange(event.target.checked)}
               />
               <span>review</span>
             </label>
@@ -66,7 +66,7 @@ export function AnswerComposer({
               autoComplete="off"
               rows={1}
               aria-label="Type your answer. Press Enter to send, Shift Enter for a new line."
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => onDraftChange(event.target.value)}
               onKeyDown={handleTextComposerKeyDown}
             />
             <button type="submit" disabled={!draft.trim() || Boolean(busy)} data-testid="send-answer-button">

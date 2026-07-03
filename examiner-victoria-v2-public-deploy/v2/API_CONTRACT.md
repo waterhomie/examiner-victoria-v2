@@ -18,6 +18,8 @@ RATE_LIMIT_PER_MINUTE=120
 MAX_ANSWER_CHARS=4000
 MAX_SESSION_MESSAGES=120
 MAX_TTS_CHARS=1200
+ADMIN_TOKEN=replace-with-a-long-random-token
+TELEMETRY_MAX_EVENTS=500
 ```
 
 ## GET /api/health
@@ -34,7 +36,9 @@ Response:
     "api_key_configured": true,
     "base_url": "https://api.gptsapi.net/v1",
     "model": "gpt-5.4-mini",
-    "transcription_model": "whisper-1"
+    "transcription_model": "whisper-1",
+    "admin_token_configured": true,
+    "telemetry_max_events": 500
   },
   "limits": {
     "max_audio_upload_mb": 12,
@@ -48,6 +52,8 @@ Response:
 ```
 
 `api_key_configured` is a boolean only; the backend never returns the actual API key.
+`admin_token_configured` is also a boolean only; the backend never returns the
+actual admin token.
 
 ## GET /api/question-bank
 
@@ -232,6 +238,48 @@ Request:
   "session": { "...": "full current session object" }
 }
 ```
+
+## POST /api/telemetry
+
+Accepts anonymous frontend performance metadata. The backend redacts sensitive
+detail keys such as `answer`, `text`, `transcript`, `token`, and `api_key`.
+
+Request:
+
+```json
+{
+  "event": "transcription",
+  "details": {
+    "durationMs": 1200,
+    "source": "server"
+  }
+}
+```
+
+Response:
+
+```text
+204 No Content
+```
+
+## GET /api/telemetry/summary
+
+Returns aggregate telemetry counts and timing summaries. This endpoint is for
+admin debugging only and requires `ADMIN_TOKEN`.
+
+Allowed authentication forms:
+
+```text
+X-Admin-Token: your-admin-token
+```
+
+or, for quick browser inspection:
+
+```text
+/api/telemetry/summary?token=your-admin-token
+```
+
+Without a valid token, the backend returns `403`.
 
 Response:
 

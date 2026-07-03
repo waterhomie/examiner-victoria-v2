@@ -57,11 +57,11 @@ async function startPreferredRecorder() {
 
 export function useAnswerRecording({
   busy,
+  onBusyChange,
+  onDraftChange,
+  onErrorChange,
+  onModeChange,
   reviewBeforeSend,
-  setBusy,
-  setDraft,
-  setError,
-  setMode,
   submitAnswer,
 }) {
   const [recording, setRecording] = useState(false);
@@ -95,21 +95,21 @@ export function useAnswerRecording({
   const handleTranscribedAudio = useCallback(
     async (text, duration) => {
       if (reviewBeforeSend) {
-        setDraft(text);
-        setMode("text");
-        setBusy("");
+        onDraftChange(text);
+        onModeChange("text");
+        onBusyChange("");
       } else {
         await submitAnswer(text, "audio", duration);
       }
       lastRecordingRef.current = null;
       setCanRetryRecording(false);
     },
-    [reviewBeforeSend, setBusy, setDraft, setMode, submitAnswer],
+    [onBusyChange, onDraftChange, onModeChange, reviewBeforeSend, submitAnswer],
   );
 
   const toggleRecording = useCallback(async () => {
     if (busy) return;
-    setError("");
+    onErrorChange("");
 
     if (!recording) {
       try {
@@ -141,14 +141,14 @@ export function useAnswerRecording({
         });
       } catch (err) {
         cleanupRecording();
-        setMode("text");
-        setError(friendlyError(err, "Microphone permission was blocked."));
+        onModeChange("text");
+        onErrorChange(friendlyError(err, "Microphone permission was blocked."));
       }
       return;
     }
 
     setRecording(false);
-    setBusy("transcribing");
+    onBusyChange("transcribing");
     const transcriptionStartedAt = Date.now();
     try {
       const browserSpeech = browserSpeechRef.current;
@@ -213,18 +213,18 @@ export function useAnswerRecording({
       });
       cleanupRecording();
       setElapsed(0);
-      setMode("text");
+      onModeChange("text");
       setCanRetryRecording(Boolean(lastRecordingRef.current?.blob));
-      setError(friendlyError(err, "Recording could not be sent."));
-      setBusy("");
+      onErrorChange(friendlyError(err, "Recording could not be sent."));
+      onBusyChange("");
     }
-  }, [busy, cleanupRecording, handleTranscribedAudio, recording, setBusy, setError, setMode]);
+  }, [busy, cleanupRecording, handleTranscribedAudio, onBusyChange, onErrorChange, onModeChange, recording]);
 
   const retryLastRecording = useCallback(async () => {
     const result = lastRecordingRef.current;
     if (!result?.blob || busy) return;
-    setError("");
-    setBusy("transcribing");
+    onErrorChange("");
+    onBusyChange("transcribing");
     const serverStartedAt = Date.now();
     try {
       const transcription = await transcribeAudio(result.blob);
@@ -251,10 +251,10 @@ export function useAnswerRecording({
         error: String(err?.message || err),
       });
       setCanRetryRecording(true);
-      setError(friendlyError(err, "Recording could not be sent."));
-      setBusy("");
+      onErrorChange(friendlyError(err, "Recording could not be sent."));
+      onBusyChange("");
     }
-  }, [busy, handleTranscribedAudio, setBusy, setError]);
+  }, [busy, handleTranscribedAudio, onBusyChange, onErrorChange]);
 
   return {
     canRetryRecording,

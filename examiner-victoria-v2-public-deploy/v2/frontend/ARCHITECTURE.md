@@ -9,8 +9,8 @@ session calculation, browser workaround, and export format.
 ```text
 src/
   App.jsx
-    Main screen coordinator. Owns top-level React state, session lifecycle,
-    recording lifecycle, and calls to API helpers.
+    Main screen assembly. It wires reducer state, controller actions, browser
+    effects, recording/playback hooks, and layout components.
 
   api.js
     All backend API requests.
@@ -25,9 +25,30 @@ src/
     unsupported or unreliable.
 
   styles.css
-    Shared visual system and desktop/global layout rules.
+    Shared CSS entrypoint. It imports base, header, stage, chat, report, and
+    composer partials from styles/.
 
-  styles/mobile.css
+  styles/
+    base.css
+      Root variables, page shell, reset rules, and global element defaults.
+
+    header.css
+      Brand/header controls, mode selectors, menu controls, and stage summary.
+
+    stage.css
+      Stage card, topic/cue-card selectors, prep timer, and progress bar.
+
+    chat.css
+      Conversation panel, bubbles, status/error/audio cards, and mobile toast
+      base styles.
+
+    report.css
+      Final report card, report navigation, section layout, and report actions.
+
+    composer.css
+      Fixed bottom composer, text mode, voice mode, timer, and review toggle.
+
+    mobile.css
     Phone responsive layer for compact header, mobile chat spacing,
     fixed composer behavior, narrow-screen adjustments, and iOS-style polish.
     Mobile-only CSS should go here instead of being mixed into styles.css.
@@ -59,10 +80,30 @@ src/
     sessionStorage.js
       Best-effort localStorage load/save helpers for refresh recovery.
 
+  state/
+    initialState.js
+      One place for top-level UI/session defaults.
+
+    actions.js
+      Named reducer actions and action creators. New state transitions should
+      be added here instead of scattered as one-off setters.
+
+    appReducer.js
+      Top-level reducer for session, UI, practice/stage, report, health, and
+      prep-timer state.
+
+    selectors.js
+      Derived view state such as capabilities, stage-card visibility, config
+      warning, prep countdown, and message lists.
+
   hooks/
     useBrowserEffects.js
       Browser-side effects such as auto-scroll, recording timer, prep countdown,
-      and pagehide cleanup.
+      pagehide cleanup, and frontend-error telemetry.
+
+    useExamController.js
+      Session lifecycle, answer submission, scoring/report requests, training
+      mode changes, practice-type changes, downloads, and restart actions.
 
     useAnswerRecording.js
       Microphone recording lifecycle, WAV recorder cleanup, browser-fast
@@ -134,8 +175,13 @@ workspace paths or Windows junctions.
 
 ## Where to change common features
 
+- Top-level state defaults: `state/initialState.js`.
+- State transitions: `state/actions.js` and `state/appReducer.js`.
+- Derived UI decisions: `state/selectors.js`.
+- Session lifecycle, answer submission, report generation, restart, and
+  downloads: `hooks/useExamController.js`.
 - Mobile layout or iOS-style visual polish: `styles/mobile.css`.
-- Shared/global layout rules: `styles.css`.
+- Shared/global layout rules: the focused partials imported by `styles.css`.
 - Bottom text or voice input behavior: `components/layout/AnswerComposer.jsx`.
 - Conversation rendering, error cards, report card, or chat scroll target: `components/layout/ChatPanel.jsx`.
 - Recording, transcription, review-before-send, retry behavior, or transcription
@@ -150,6 +196,17 @@ workspace paths or Windows junctions.
 - Victoria voice playback, TTS cache, or iPhone autoplay fallback: `hooks/useSpeechPlayback.js`.
 - Chat bubble or report rendering: `components/messages/MessageViews.jsx`.
 - API request paths and payload shapes: `api.js`.
+
+## Guardrails
+
+- `App.jsx` should stay a composition layer. If logic needs branching,
+  async work, or repeated state updates, move it into a hook, reducer action,
+  selector, or component.
+- Components and hooks should not call `fetch()` directly. Add or reuse a
+  helper in `api.js` instead.
+- Mobile breakpoint CSS belongs in `styles/mobile.css`.
+- Keep `useAnswerRecording` and `useSpeechPlayback` reporting changes through
+  named callbacks rather than owning broad app state.
 
 ## Browser-test anchors
 

@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$BackendUrl,
     [Parameter(Mandatory = $true)]
-    [string]$FrontendUrl
+    [string]$FrontendUrl,
+    [string]$AdminToken = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +28,9 @@ Write-Host "Backend health: ok" -ForegroundColor Green
 if ($null -ne $health.config) {
     if (-not $health.config.api_key_configured) {
         throw "Backend API_KEY is not configured. Set API_KEY before public testing."
+    }
+    if (-not $health.config.admin_token_configured) {
+        throw "Backend ADMIN_TOKEN is not configured. Set ADMIN_TOKEN before public telemetry testing."
     }
     Write-Host "Backend model: $($health.config.model), transcription: $($health.config.transcription_model)" -ForegroundColor Green
 }
@@ -74,6 +78,42 @@ if ($options.cue_cards.Count -ne 73) {
     throw "Unexpected cue-card option count: $($options.cue_cards.Count)"
 }
 Write-Host "Practice options: $($options.part1_topics.Count) Part 1 topics, $($options.cue_cards.Count) cue cards" -ForegroundColor Green
+
+Invoke-RestMethod `
+    -Method Post `
+    -Uri "$backend/api/telemetry" `
+    -ContentType "application/json" `
+    -Body '{"event":"deployment-check","details":{"durationMs":1,"text":"must not be stored"}}' `
+    -TimeoutSec 20 | Out-Null
+
+$blockedTelemetryStatus = $null
+try {
+    Invoke-WebRequest -UseBasicParsing -Uri "$backend/api/telemetry/summary" -TimeoutSec 20 | Out-Null
+    throw "Telemetry summary unexpectedly allowed access without ADMIN_TOKEN."
+} catch {
+    if ($_.Exception.Response) {
+        $blockedTelemetryStatus = [int]$_.Exception.Response.StatusCode
+    } else {
+        throw
+    }
+}
+if ($blockedTelemetryStatus -ne 403) {
+    throw "Telemetry summary should return 403 without token, got HTTP $blockedTelemetryStatus."
+}
+Write-Host "Telemetry summary: protected without token" -ForegroundColor Green
+
+if ($AdminToken) {
+    $telemetrySummary = Invoke-RestMethod `
+        -Uri "$backend/api/telemetry/summary" `
+        -Headers @{ "X-Admin-Token" = $AdminToken } `
+        -TimeoutSec 20
+    if ($telemetrySummary.total_events -lt 1) {
+        throw "Telemetry summary did not include the deployment-check event."
+    }
+    Write-Host "Telemetry summary: accessible with admin token, total events $($telemetrySummary.total_events)" -ForegroundColor Green
+} else {
+    Write-Host "Telemetry summary token check skipped. Pass -AdminToken to verify the protected summary payload." -ForegroundColor Yellow
+}
 
 $sessionResponse = Invoke-RestMethod `
     -Method Post `
