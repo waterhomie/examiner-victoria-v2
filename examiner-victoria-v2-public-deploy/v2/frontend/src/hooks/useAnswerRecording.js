@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { transcribeAudio } from "../api.js";
+import { sendTelemetryEvent, transcribeAudio } from "../api.js";
 import { createBrowserSpeechTranscriber } from "../browserSpeechTranscriber.js";
 import { createAnswerRecorder, WavRecorder } from "../recorder.js";
 import { friendlyError } from "../utils/errors.js";
@@ -17,6 +17,19 @@ function recordTranscriptionDiagnostic(details) {
     diagnostic,
   ].slice(-10);
   console.info("[Victoria transcription]", diagnostic);
+  sendTelemetryEvent("transcription", diagnostic);
+}
+
+function countTranscriptWords(text) {
+  return (text.match(/[A-Za-z']+/g) || []).length;
+}
+
+function shouldTrustBrowserTranscript(text, duration) {
+  const words = countTranscriptWords(text);
+  if (!text.trim() || words === 0) return false;
+  if (duration >= 2.5 && words < 3) return false;
+  if (duration >= 5 && words < 5) return false;
+  return true;
 }
 
 async function startPreferredRecorder() {
@@ -152,7 +165,7 @@ export function useAnswerRecording({
       }
       lastRecordingRef.current = result;
       const fastText = (await browserTranscriptPromise).trim();
-      if (fastText) {
+      if (fastText && shouldTrustBrowserTranscript(fastText, result.duration)) {
         recordTranscriptionDiagnostic({
           stage: "transcription-completed",
           source: "browser",
@@ -164,6 +177,15 @@ export function useAnswerRecording({
         });
         await handleTranscribedAudio(fastText, result.duration);
         return;
+      }
+      if (fastText) {
+        recordTranscriptionDiagnostic({
+          stage: "browser-transcript-rejected",
+          reason: "too-short-for-recording-duration",
+          browserWords: countTranscriptWords(fastText),
+          duration: result.duration,
+          recorderType: result.recorderType || "unknown",
+        });
       }
       const serverStartedAt = Date.now();
       const transcription = await transcribeAudio(result.blob);

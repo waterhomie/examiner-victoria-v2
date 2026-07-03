@@ -10,7 +10,7 @@
 @media (max-width: 620px) {
   .app-shell {
     padding: max(8px, env(safe-area-inset-top)) 10px 0;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .topbar {

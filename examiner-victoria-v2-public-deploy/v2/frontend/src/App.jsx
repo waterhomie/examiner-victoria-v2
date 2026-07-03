@@ -3,6 +3,7 @@ import {
   buildReport,
   fetchPracticeOptions,
   healthCheck,
+  sendTelemetryEvent,
   sendAnswer,
   startSession,
 } from "./api.js";
@@ -60,6 +61,7 @@ export default function App() {
     pendingSpeechUrl,
     playPendingSpeech,
     playSpeech,
+    unlockAudio,
     stopCurrentAudio,
   } = useSpeechPlayback({ audioEnabled, setError });
   const {
@@ -113,6 +115,11 @@ export default function App() {
     showPart1TopicSelect,
     showCueCardSelect,
   });
+  const hasUserAnswers = sessionStats.answered > 0;
+  const stageSelectionIsSettled =
+    (showPart1TopicSelect && (Boolean(selectedPart1Topic) || hasUserAnswers)) ||
+    (showCueCardSelect && (Boolean(selectedCueCardTitle) || hasUserAnswers));
+  const shouldShowStageCard = hasVisibleStageControls && (prepRemaining > 0 || !stageSelectionIsSettled);
 
   useEffect(() => {
     let restored = false;
@@ -216,6 +223,30 @@ export default function App() {
     stopCurrentAudio();
   });
 
+  useEffect(() => {
+    function handleWindowError(event) {
+      sendTelemetryEvent("frontend-error", {
+        message: event.message || "window error",
+        source: event.filename || "",
+        line: event.lineno || 0,
+        column: event.colno || 0,
+      });
+    }
+
+    function handleUnhandledRejection(event) {
+      sendTelemetryEvent("frontend-error", {
+        message: String(event.reason?.message || event.reason || "unhandled rejection"),
+      });
+    }
+
+    window.addEventListener("error", handleWindowError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", handleWindowError);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+    };
+  }, []);
+
   async function createFreshSession(
     nextPracticeType = practiceType,
     nextPart1Topic = selectedPart1Topic,
@@ -300,14 +331,18 @@ export default function App() {
     resetRecording();
   }
 
-  async function submitAnswer(answer, source = "text", duration = null) {
+  async function submitAnswer(answer, source = "text", duration = null, options = {}) {
     const cleaned = answer.trim();
     if (!cleaned || !session) return;
+    const answerStartedAt = Date.now();
+    const answerPhase = session.phase;
     setError("");
     setBusy("thinking");
     setReport("");
     setPrepEndsAt(null);
-    stopCurrentAudio();
+    if (!options.audioPrepared) {
+      stopCurrentAudio();
+    }
     clearPendingSpeech();
     resetComposerAfterAnswer();
     try {
@@ -316,6 +351,13 @@ export default function App() {
         answer: cleaned,
         source,
         duration,
+      });
+      sendTelemetryEvent("answer", {
+        durationMs: Date.now() - answerStartedAt,
+        source,
+        answerDuration: duration || 0,
+        phase: answerPhase,
+        messageCount: session.messages?.length || 0,
       });
       setSession(data.session);
       if (data.start_prep_timer) {
@@ -326,6 +368,13 @@ export default function App() {
       setBusy("");
       void playSpeech(data.spoken_text);
     } catch (err) {
+      sendTelemetryEvent("answer-error", {
+        durationMs: Date.now() - answerStartedAt,
+        source,
+        answerDuration: duration || 0,
+        phase: answerPhase,
+        message: String(err?.message || err),
+      });
       setError(friendlyError(err, "Victoria could not respond."));
     } finally {
       setBusy("");
@@ -334,15 +383,27 @@ export default function App() {
 
   async function submitTypedAnswer(event) {
     event?.preventDefault();
-    await submitAnswer(draft, "text", null);
+    stopCurrentAudio();
+    unlockAudio();
+    await submitAnswer(draft, "text", null, { audioPrepared: true });
   }
 
   function handleTextComposerKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) return;
     event.preventDefault();
     if (draft.trim() && canAnswer) {
-      void submitAnswer(draft, "text", null);
+      stopCurrentAudio();
+      unlockAudio();
+      void submitAnswer(draft, "text", null, { audioPrepared: true });
     }
+  }
+
+  function handleToggleRecording() {
+    if (!recording) {
+      stopCurrentAudio();
+    }
+    unlockAudio();
+    void toggleRecording();
   }
 
   async function requestReport() {
@@ -402,26 +463,28 @@ export default function App() {
         trainingMode={trainingMode}
         trainingModes={TRAINING_MODES}
       />
-      <ExamStageCard
-        busy={busy}
-        changeCueCardTitle={changeCueCardTitle}
-        changePart1Topic={changePart1Topic}
-        currentPhase={currentPhase}
-        formatDuration={formatDuration}
-        hasStageControls={hasVisibleStageControls}
-        isPracticeMode={isPracticeMode}
-        practiceOptions={practiceOptions}
-        prepRemaining={prepRemaining}
-        recording={recording}
-        selectedCueCardTitle={selectedCueCardTitle}
-        selectedPart1Topic={selectedPart1Topic}
-        session={session}
-        sessionStats={sessionStats}
-        showCueCardSelect={showCueCardSelect}
-        showPart1TopicSelect={showPart1TopicSelect}
-        stageDescription={stageDescription}
-        stageProgress={stageProgress}
-      />
+      {shouldShowStageCard ? (
+        <ExamStageCard
+          busy={busy}
+          changeCueCardTitle={changeCueCardTitle}
+          changePart1Topic={changePart1Topic}
+          currentPhase={currentPhase}
+          formatDuration={formatDuration}
+          hasStageControls={hasVisibleStageControls}
+          isPracticeMode={isPracticeMode}
+          practiceOptions={practiceOptions}
+          prepRemaining={prepRemaining}
+          recording={recording}
+          selectedCueCardTitle={selectedCueCardTitle}
+          selectedPart1Topic={selectedPart1Topic}
+          session={session}
+          sessionStats={sessionStats}
+          showCueCardSelect={showCueCardSelect}
+          showPart1TopicSelect={showPart1TopicSelect}
+          stageDescription={stageDescription}
+          stageProgress={stageProgress}
+        />
+      ) : null}
 
       <ChatPanel
         bottomRef={bottomRef}
@@ -469,7 +532,7 @@ export default function App() {
         setMode={setMode}
         setReviewBeforeSend={setReviewBeforeSend}
         submitTypedAnswer={submitTypedAnswer}
-        toggleRecording={toggleRecording}
+        toggleRecording={handleToggleRecording}
       />
     </div>
   );

@@ -47,6 +47,10 @@ v2/backend/
     Final report generation, rule-based fallback report, learning summary,
     and raw answer-log formatting.
 
+  telemetry_service.py
+    Lightweight in-memory performance telemetry for transcription, answer,
+    TTS, and frontend-error events. It stores timing metadata, not answer text.
+
   smoke_test.py
     Local safety checks for the main API routes and core session flow.
 ```
@@ -63,6 +67,8 @@ v2/backend/
 - Spoken correction or natural-answer upgrade rules: `feedback_service.py`.
 - Cue cards, Part 1 topic choices, question-bank counts: `question_bank_service.py`.
 - Final report format or scoring-summary fallback: `report_service.py`.
+- Mobile performance monitoring or telemetry summaries: `telemetry_service.py`
+  plus the `/api/telemetry` routes in `app.py`.
 - Smoke-test scenarios: `smoke_test.py`.
 
 ## Refactor-plan vocabulary

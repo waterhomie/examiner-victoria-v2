@@ -20,8 +20,10 @@ without rewriting the product from scratch.
 | Mobile-first layout separated | Shared styles are in `styles.css`; phone responsive rules are in `styles/mobile.css`. | Done |
 | Fixed chat-style composer | `components/layout/AnswerComposer.jsx` owns text/voice composer behavior. | Done |
 | Tap-to-record instead of hold-to-speak | Implemented through `useAnswerRecording.js` and composer controls. | Done |
-| Faster voice transcription path | `browserSpeechTranscriber.js` tries browser-native speech recognition first; compressed `MediaRecorder` audio is preferred for server fallback, with 16 kHz WAV as the final fallback. | Done, pending real-device speed check |
-| iPhone audio fallback | `useSpeechPlayback.js` owns TTS cache and iPhone/Safari tap-to-play fallback. | Done, pending real-device verification |
+| Faster voice transcription path | `browserSpeechTranscriber.js` uses browser-native speech recognition only where reliable; iPhone/iPad now prefer server Whisper because Safari returned truncated one-word transcripts. Compressed `MediaRecorder` audio is preferred for server fallback elsewhere, with 16 kHz WAV as final fallback. | Done, public iPhone speed accepted at roughly 1-3s |
+| iPhone audio fallback | `useSpeechPlayback.js` owns TTS cache, user-gesture audio unlock attempts, and iPhone/Safari tap-to-play fallback. | Done, Safari may still require one tap by platform rule |
+| Mobile stage-control layout | `styles/mobile.css` keeps the stage control row compact, and `App.jsx` hides Part 1/topic selection after it has served its purpose. | Done |
+| Runtime performance telemetry | Frontend sends transcription, answer, TTS, and frontend-error timing metadata to `/api/telemetry`; `/api/telemetry/summary` exposes recent in-memory metrics without storing answer text. | Done |
 | Single local development entry | `run_local_stack.ps1` builds React dist and serves frontend + `/api` on `http://127.0.0.1:5174`. | Done |
 | HTTPS phone testing path | `start_https_tunnel.ps1` creates a temporary Cloudflare HTTPS URL and defaults to HTTP/2 for better reliability on this network. | Done |
 | Local/HTTPS preview preflight | `check_local_preview.ps1` checks frontend HTML, `/api/health`, and question-bank counts for local and saved tunnel URLs. | Done |
@@ -36,7 +38,7 @@ without rewriting the product from scratch.
 
 ## Latest known verification
 
-Last checked: 2026-07-02.
+Last checked: 2026-07-03.
 
 Run:
 

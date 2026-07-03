@@ -1,10 +1,12 @@
 import { useCallback, useRef, useState } from "react";
-import { synthesizeSpeech } from "../api.js";
+import { sendTelemetryEvent, synthesizeSpeech } from "../api.js";
 import { isLikelyIOSDevice } from "../utils/browser.js";
 import { friendlyError } from "../utils/errors.js";
 import { speechCacheKey } from "../utils/format.js";
 
 const MAX_SPEECH_CACHE_ITEMS = 24;
+const SILENT_WAV_DATA_URI =
+  "data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 
 export function useSpeechPlayback({ audioEnabled, setError }) {
   const [pendingSpeechUrl, setPendingSpeechUrl] = useState("");
@@ -15,6 +17,16 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
   const speechBlobCacheRef = useRef(new Map());
   const pendingSpeechUrlRef = useRef("");
 
+  const getAudioElement = useCallback(() => {
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.playsInline = true;
+      audio.preload = "auto";
+      audioRef.current = audio;
+    }
+    return audioRef.current;
+  }, []);
+
   const stopCurrentAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -24,7 +36,6 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
     if (audioUrlRef.current) {
       URL.revokeObjectURL(audioUrlRef.current);
     }
-    audioRef.current = null;
     audioUrlRef.current = "";
   }, []);
 
@@ -37,34 +48,78 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
     setPendingSpeechText("");
   }, []);
 
+  const unlockAudio = useCallback(() => {
+    if (!audioEnabled || audioUnlockedRef.current || !isLikelyIOSDevice()) return;
+    const audio = getAudioElement();
+    const previousMuted = audio.muted;
+    const previousVolume = audio.volume;
+    audio.muted = true;
+    audio.volume = 0;
+    audio.src = SILENT_WAV_DATA_URI;
+    const unlockAttempt = audio.play();
+    Promise.resolve(unlockAttempt)
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.removeAttribute("src");
+        audio.load();
+        audio.muted = previousMuted;
+        audio.volume = previousVolume;
+        audioUnlockedRef.current = true;
+      })
+      .catch(() => {
+        audio.muted = previousMuted;
+        audio.volume = previousVolume;
+      });
+  }, [audioEnabled, getAudioElement]);
+
   const playAudioUrl = useCallback(async (url) => {
-    const audio = new Audio(url);
-    audio.playsInline = true;
-    audio.preload = "auto";
-    audioRef.current = audio;
+    const audio = getAudioElement();
+    audio.pause();
+    audio.src = url;
     audioUrlRef.current = url;
-    audio.addEventListener(
-      "ended",
-      () => {
-        if (audioRef.current === audio) {
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-          audioUrlRef.current = "";
-        }
-      },
-      { once: true },
-    );
+    audio.onended = () => {
+      if (audioUrlRef.current === url) {
+        URL.revokeObjectURL(url);
+        audioUrlRef.current = "";
+        audio.removeAttribute("src");
+        audio.load();
+      }
+    };
     await audio.play();
     audioUnlockedRef.current = true;
-  }, []);
+  }, [getAudioElement]);
 
   const getSpeechBlob = useCallback(async (text) => {
     const key = speechCacheKey(text);
     const cache = speechBlobCacheRef.current;
     if (key && cache.has(key)) {
+      sendTelemetryEvent("tts", {
+        source: "cache",
+        chars: text.length,
+        durationMs: 0,
+      });
       return cache.get(key);
     }
-    const blob = await synthesizeSpeech(text);
+    const startedAt = Date.now();
+    let blob;
+    try {
+      blob = await synthesizeSpeech(text);
+      sendTelemetryEvent("tts", {
+        source: "server",
+        chars: text.length,
+        durationMs: Date.now() - startedAt,
+        bytes: blob.size || 0,
+      });
+    } catch (err) {
+      sendTelemetryEvent("tts-error", {
+        source: "server",
+        chars: text.length,
+        durationMs: Date.now() - startedAt,
+        message: String(err?.message || err),
+      });
+      throw err;
+    }
     if (key) {
       cache.set(key, blob);
       while (cache.size > MAX_SPEECH_CACHE_ITEMS) {
@@ -84,12 +139,6 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
       try {
         const blob = await getSpeechBlob(text);
         url = URL.createObjectURL(blob);
-        if (isLikelyIOSDevice() && !audioUnlockedRef.current) {
-          pendingSpeechUrlRef.current = url;
-          setPendingSpeechUrl(url);
-          setPendingSpeechText(text);
-          return;
-        }
         await playAudioUrl(url);
       } catch (err) {
         if (!url) {
@@ -102,8 +151,14 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
           return;
         }
 
-        audioRef.current = null;
-        audioUrlRef.current = "";
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.removeAttribute("src");
+          audioRef.current.load();
+        }
+        if (audioUrlRef.current === url) {
+          audioUrlRef.current = "";
+        }
         pendingSpeechUrlRef.current = url;
         setPendingSpeechUrl(url);
         setPendingSpeechText(text);
@@ -140,6 +195,7 @@ export function useSpeechPlayback({ audioEnabled, setError }) {
     pendingSpeechUrl,
     playPendingSpeech,
     playSpeech,
+    unlockAudio,
     stopCurrentAudio,
   };
 }

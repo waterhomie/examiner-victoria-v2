@@ -1,6 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 const DEFAULT_TIMEOUT_MS = 30000;
 
+function telemetryUrl() {
+  return `${API_BASE}/api/telemetry`;
+}
+
 function audioFilenameForBlob(blob) {
   const type = (blob?.type || "").toLowerCase();
   if (type.includes("mp4") || type.includes("aac")) return "answer.m4a";
@@ -103,4 +107,34 @@ export async function buildReport(session) {
     body: JSON.stringify({ session }),
   });
   return response.json();
+}
+
+export function sendTelemetryEvent(event, details = {}) {
+  if (typeof window === "undefined") return;
+  const payload = JSON.stringify({
+    event,
+    details: {
+      ...details,
+      online: navigator.onLine,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      platform: navigator.platform || "",
+      touchPoints: navigator.maxTouchPoints || 0,
+    },
+  });
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: "application/json" });
+      if (navigator.sendBeacon(telemetryUrl(), blob)) return;
+    }
+  } catch (_) {
+    // Telemetry must never affect the speaking flow.
+  }
+
+  fetch(telemetryUrl(), {
+    method: "POST",
+    body: payload,
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+  }).catch(() => {});
 }

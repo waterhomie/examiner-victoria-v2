@@ -30,8 +30,10 @@ from .schemas import (
     StartSessionRequest,
     StartSessionResponse,
     TTSRequest,
+    TelemetryEvent,
     TranscriptionResponse,
 )
+from .telemetry_service import get_telemetry_summary, record_telemetry_event
 
 logger = logging.getLogger("examiner_victoria")
 FRONTEND_DIST = Path(
@@ -159,6 +161,22 @@ def question_bank() -> dict[str, int]:
 @app.get("/api/practice-options")
 def practice_options() -> dict[str, list]:
     return get_practice_options()
+
+
+@app.post("/api/telemetry", status_code=204)
+def telemetry(request_body: TelemetryEvent, request: Request) -> Response:
+    record_telemetry_event(
+        request_body.event,
+        request_body.details,
+        client_host=request.client.host if request.client else "unknown",
+        user_agent=request.headers.get("user-agent", ""),
+    )
+    return Response(status_code=204)
+
+
+@app.get("/api/telemetry/summary")
+def telemetry_summary() -> dict[str, object]:
+    return get_telemetry_summary()
 
 
 @app.post("/api/sessions", response_model=StartSessionResponse)

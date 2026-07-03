@@ -1,3 +1,5 @@
+import { isLikelyIOSDevice } from "./utils/browser.js";
+
 const DEFAULT_LANGUAGE = "en-US";
 
 function getSpeechRecognitionClass() {
@@ -13,10 +15,12 @@ function normalizeTranscript(text) {
 }
 
 export function browserSpeechTranscriptionIsSupported() {
+  if (isLikelyIOSDevice()) return false;
   return Boolean(getSpeechRecognitionClass());
 }
 
 export function createBrowserSpeechTranscriber({ language = DEFAULT_LANGUAGE } = {}) {
+  if (!browserSpeechTranscriptionIsSupported()) return null;
   const SpeechRecognitionClass = getSpeechRecognitionClass();
   if (!SpeechRecognitionClass) return null;
 

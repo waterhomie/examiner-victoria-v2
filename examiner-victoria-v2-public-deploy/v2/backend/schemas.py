@@ -115,3 +115,8 @@ class TranscriptionResponse(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str
+
+
+class TelemetryEvent(BaseModel):
+    event: str = Field(min_length=1, max_length=80)
+    details: dict[str, Any] = Field(default_factory=dict)
