@@ -60,6 +60,12 @@ ADMIN_TOKEN=replace-with-a-long-random-token
 TELEMETRY_MAX_EVENTS=500
 ```
 
+To generate a strong `ADMIN_TOKEN` locally:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\generate_admin_token.ps1
+```
+
 For the first one-service test, `CORS_ORIGINS=*` is acceptable because the
 frontend and backend are on the same domain. Before wider public sharing, replace
 it with the real public domain.

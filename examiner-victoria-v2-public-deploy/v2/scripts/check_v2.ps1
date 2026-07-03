@@ -176,6 +176,7 @@ $scriptFiles = @(
     ".\v2\scripts\check_deployed_v2.ps1",
     ".\v2\scripts\check_deploy_config.ps1",
     ".\v2\scripts\prepare_public_deploy_bundle.ps1",
+    ".\v2\scripts\generate_admin_token.ps1",
     ".\v2\scripts\sync_public_deploy_github.ps1"
 )
 foreach ($scriptFile in $scriptFiles) {
