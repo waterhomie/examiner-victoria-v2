@@ -7,7 +7,12 @@ $ErrorActionPreference = "Stop"
 
 $alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_"
 $bytes = [byte[]]::new($Length)
-[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+    $rng.GetBytes($bytes)
+} finally {
+    $rng.Dispose()
+}
 
 $chars = for ($index = 0; $index -lt $Length; $index += 1) {
     $alphabet[$bytes[$index] % $alphabet.Length]

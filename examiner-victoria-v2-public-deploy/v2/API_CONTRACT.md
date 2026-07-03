@@ -239,6 +239,14 @@ Request:
 }
 ```
 
+Response:
+
+```json
+{
+  "report": "Estimated overall band..."
+}
+```
+
 ## POST /api/telemetry
 
 Accepts anonymous frontend performance metadata. The backend redacts sensitive
@@ -279,15 +287,9 @@ or, for quick browser inspection:
 /api/telemetry/summary?token=your-admin-token
 ```
 
-Without a valid token, the backend returns `403`.
-
-Response:
-
-```json
-{
-  "report": "Estimated overall band..."
-}
-```
+Without a valid token, the backend returns `403`. If `ADMIN_TOKEN` is not
+configured at all, the backend returns `503` so the summary cannot accidentally
+be exposed.
 
 ## Stateless session rule
 

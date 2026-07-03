@@ -20,6 +20,7 @@ $requiredFiles = @(
     ".\deploy\vps\.env.example",
     ".\deploy\vps\README.md",
     ".\v2\scripts\prepare_public_deploy_bundle.ps1",
+    ".\v2\scripts\generate_admin_token.ps1",
     ".\v2\scripts\sync_public_deploy_github.ps1",
     ".\v2\backend\.env.example",
     ".\v2\backend\requirements.txt",
