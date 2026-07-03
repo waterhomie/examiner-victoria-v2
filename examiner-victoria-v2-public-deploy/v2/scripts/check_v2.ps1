@@ -196,6 +196,7 @@ Invoke-V2Native $python -m v2.backend.smoke_test
 powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deploy_config.ps1
 
 Push-Location .\v2\frontend
+Invoke-V2Native $pnpm run test:smoke
 Invoke-V2Native $pnpm run build
 Pop-Location
 

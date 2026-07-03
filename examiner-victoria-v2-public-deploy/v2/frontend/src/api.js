@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = import.meta.env?.VITE_API_BASE || "";
 const DEFAULT_TIMEOUT_MS = 30000;
 
 function telemetryUrl() {
