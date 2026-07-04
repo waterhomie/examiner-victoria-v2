@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { healthCheck, sendTelemetryEvent } from "./src/api.js";
 import { browserSpeechTranscriptionIsSupported } from "./src/browserSpeechTranscriber.js";
@@ -149,9 +150,25 @@ function assertTelemetryFailureIsNonBlocking() {
   assert.doesNotThrow(() => sendTelemetryEvent("smoke-test", { durationMs: 1, text: "redacted upstream" }));
 }
 
+function assertChatBottomAnchorContracts() {
+  const chatPanel = readFileSync("./src/components/layout/ChatPanel.jsx", "utf8");
+  const mobileCss = readFileSync("./src/styles/mobile.css", "utf8");
+  const browserEffects = readFileSync("./src/hooks/useBrowserEffects.js", "utf8");
+
+  assert.match(chatPanel, /className="chat-bottom-anchor"/);
+  assert.match(chatPanel, /data-testid="chat-bottom-anchor"/);
+  assert.match(chatPanel, /ref=\{bottomRef\}/);
+  assert.match(mobileCss, /\.chat-panel\s*>\s*\.message-row:first-child\s*\{[^}]*margin-top:\s*auto/s);
+  assert.match(mobileCss, /\.chat-bottom-anchor\s*\{[^}]*flex-basis:\s*calc\(124px \+ env\(safe-area-inset-bottom\)\)/s);
+  assert.match(browserEffects, /useLayoutEffect/);
+  assert.match(browserEffects, /scrollIntoView\(\{\s*behavior,\s*block:\s*"end"/s);
+  assert.match(browserEffects, /distanceFromBottom/);
+}
+
 await assertApiErrorMapping();
 assertBrowserSpeechIOSGuard();
 assertCapabilities();
+assertChatBottomAnchorContracts();
 assertReducerFlow();
 assertStageCardSelector();
 assertTelemetryFailureIsNonBlocking();

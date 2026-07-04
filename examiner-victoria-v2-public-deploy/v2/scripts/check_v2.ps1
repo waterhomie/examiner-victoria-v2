@@ -128,6 +128,17 @@ if ($mobileStyles -notmatch "\.message-row\.assistant" -or $mobileStyles -notmat
 if ($mobileStyles -notmatch "-webkit-overflow-scrolling:\s*touch" -or $mobileStyles -notmatch "touch-action:\s*pan-y") {
     throw "styles/mobile.css must keep iOS chat-panel touch scrolling enabled."
 }
+if ($mobileStyles -notmatch "\.chat-panel\s*>\s*\.message-row:first-child\s*\{[\s\S]*?margin-top:\s*auto") {
+    throw "styles/mobile.css must bottom-align short mobile chats with .chat-panel > .message-row:first-child { margin-top: auto; }."
+}
+if ($mobileStyles -notmatch "\.chat-bottom-anchor\s*\{[\s\S]*?flex-basis:\s*calc\(124px \+ env\(safe-area-inset-bottom\)\)") {
+    throw "styles/mobile.css must define a mobile .chat-bottom-anchor sized above the fixed composer."
+}
+
+$chatPanelSource = Get-Content -LiteralPath ".\v2\frontend\src\components\layout\ChatPanel.jsx" -Raw
+if ($chatPanelSource -notmatch 'className="chat-bottom-anchor"' -or $chatPanelSource -notmatch 'data-testid="chat-bottom-anchor"' -or $chatPanelSource -notmatch 'ref=\{bottomRef\}') {
+    throw "ChatPanel must render a real chat-bottom-anchor bound to bottomRef."
+}
 
 $frontendSourceFiles = Get-ChildItem -LiteralPath ".\v2\frontend\src" -Recurse -File |
     Where-Object { $_.Extension -in @(".js", ".jsx") -and $_.Name -ne "api.js" }
@@ -235,6 +246,7 @@ $requiredTestIds = @(
     "composer-mode-toggle",
     "record-button",
     "chat-panel",
+    "chat-bottom-anchor",
     "message-user",
     "message-assistant"
 )

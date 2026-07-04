@@ -74,7 +74,7 @@ export function ChatPanel({
         </section>
       ) : null}
 
-      <div ref={bottomRef} />
+      <div className="chat-bottom-anchor" ref={bottomRef} data-testid="chat-bottom-anchor" aria-hidden="true" />
     </main>
   );
 }

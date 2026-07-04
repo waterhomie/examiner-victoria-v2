@@ -192,9 +192,13 @@
   .chat-panel {
     gap: 9px;
     min-height: 0;
-    padding-bottom: 88px;
+    padding-bottom: 0;
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .chat-panel > .message-row:first-child {
+    margin-top: auto;
   }
 
   .message-row,
@@ -381,9 +385,14 @@
 
   .chat-panel {
     min-height: 0;
-    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    padding-bottom: 0;
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .chat-bottom-anchor {
+    flex-basis: calc(124px + env(safe-area-inset-bottom));
+    min-height: calc(124px + env(safe-area-inset-bottom));
   }
 
   .message-row.assistant,

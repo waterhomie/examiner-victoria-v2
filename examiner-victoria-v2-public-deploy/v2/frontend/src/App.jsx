@@ -160,11 +160,15 @@ export default function App() {
     state.busy,
     state.report,
     sessionView.shouldShowStageCard,
+    lastMessage?.role,
     lastMessage?.phase,
+    lastMessage?.content,
     pendingSpeechUrl,
   ]);
-  useScrollStateTelemetry(chatPanelRef, {
-    answerCount: sessionView.sessionStats.answered,
+  useScrollStateTelemetry(chatPanelRef, bottomRef, {
+    answerCount: state.session?.candidate_answers?.length || 0,
+    lastMessagePhase: lastMessage?.phase,
+    lastMessageRole: lastMessage?.role,
     messageCount: messages.length,
     phase: state.session?.phase,
     practiceType: state.practiceType,

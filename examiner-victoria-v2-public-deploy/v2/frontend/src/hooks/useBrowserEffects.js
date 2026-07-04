@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import { sendTelemetryEvent } from "../api.js";
 
@@ -13,17 +13,18 @@ function isMobileViewport() {
 
 
 function scrollPanelToLatest(panelRef, bottomRef, behavior) {
-  const panel = panelRef.current;
-  if (panel) {
-    panel.scrollTo({ top: panel.scrollHeight, behavior });
+  const anchor = bottomRef.current;
+  if (anchor) {
+    anchor.scrollIntoView({ behavior, block: "end", inline: "nearest" });
     return;
   }
-  bottomRef.current?.scrollIntoView({ behavior, block: "end" });
+  const panel = panelRef.current;
+  panel?.scrollTo({ top: panel.scrollHeight, behavior });
 }
 
 
 export function useAutoScrollToLatest(panelRef, bottomRef, triggers) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const mobile = isMobileViewport();
     const behavior = mobile ? "auto" : "smooth";
     const timers = [];
@@ -37,8 +38,9 @@ export function useAutoScrollToLatest(panelRef, bottomRef, triggers) {
       } else {
         timers.push(window.setTimeout(runAgain, 0));
       }
-      timers.push(window.setTimeout(runAgain, 140));
+      timers.push(window.setTimeout(runAgain, 120));
       timers.push(window.setTimeout(runAgain, 360));
+      timers.push(window.setTimeout(runAgain, 720));
     }
 
     return () => {
@@ -53,7 +55,7 @@ export function useAutoScrollToLatest(panelRef, bottomRef, triggers) {
 }
 
 
-export function useScrollStateTelemetry(panelRef, sessionView) {
+export function useScrollStateTelemetry(panelRef, bottomRef, sessionView) {
   const lastAnswerCountRef = useRef(null);
 
   useEffect(() => {
@@ -69,9 +71,15 @@ export function useScrollStateTelemetry(panelRef, sessionView) {
     const timer = window.setTimeout(() => {
       const panel = panelRef.current;
       if (!panel) return;
+      const bottomAnchor = bottomRef.current;
+      const distanceFromBottom = panel.scrollHeight - panel.clientHeight - panel.scrollTop;
       sendTelemetryEvent("ui-scroll-state", {
         answerCount,
+        bottomAnchorHeight: Math.round(bottomAnchor?.getBoundingClientRect?.().height || 0),
         clientHeight: Math.round(panel.clientHeight || 0),
+        distanceFromBottom: Math.round(distanceFromBottom || 0),
+        lastMessagePhase: sessionView.lastMessagePhase || "",
+        lastMessageRole: sessionView.lastMessageRole || "",
         messageCount: sessionView.messageCount || 0,
         phase: sessionView.phase || "",
         practiceType: sessionView.practiceType || "",
@@ -84,7 +92,10 @@ export function useScrollStateTelemetry(panelRef, sessionView) {
     return () => window.clearTimeout(timer);
   }, [
     panelRef,
+    bottomRef,
     sessionView?.answerCount,
+    sessionView?.lastMessagePhase,
+    sessionView?.lastMessageRole,
     sessionView?.messageCount,
     sessionView?.phase,
     sessionView?.practiceType,
