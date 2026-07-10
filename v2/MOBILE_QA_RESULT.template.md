@@ -1,8 +1,7 @@
 # Examiner Victoria V2 Mobile QA Result
 
 Copy this file to `v2/MOBILE_QA_RESULT.md` after a real-device test, then fill
-in the result. Do not mark V2 ready to replace Streamlit until this file shows a
-passing phone loop.
+in the result. Use it as production V2 mobile-regression evidence.
 
 ## Test metadata
 
@@ -105,7 +104,7 @@ Notes:
 
 Choose one:
 
-- [ ] Pass: V2 mobile loop is acceptable for private beta.
+- [ ] Pass: V2 mobile loop is acceptable for the current production build.
 - [ ] Partial pass: text loop is acceptable, voice loop needs more work.
 - [ ] Fail: do not share V2 yet.
 

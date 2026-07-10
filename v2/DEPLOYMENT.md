@@ -1,17 +1,26 @@
-# Examiner Victoria V2 Public Deployment
+﻿# Examiner Victoria V2 Public Deployment
 
 This V2 deployment path is intentionally simple: deploy **one FastAPI web
 service** that serves both the React app and `/api`.
 
-Use this for the first public mobile-speed test. Do not split Netlify frontend
-and backend yet; the current bottleneck is the phone-to-backend voice loop, so a
-single HTTPS service is easier to test and debug.
+This is the current production deployment shape. Do not split Netlify frontend
+and backend unless a later architecture task explicitly requires it; the
+phone-to-backend voice loop is easiest to debug as one HTTPS service.
 
-## Recommended first deployment
+## Current Railway deployment
+
+The GitHub repository root contains the deployable app. Railway should point at
+the repository root, use the production branch, and build the root Dockerfile.
+If Railway has a Config File Path setting, it should point to `/railway.json`.
+
+Production currently uses Railway for the public V2 test build. Keep secrets in
+Railway environment variables only.
+
+## Other supported platforms
 
 Use one of these managed web-service platforms:
 
-- Railway: easiest first try if you want a quick public URL.
+- Railway: current simple production path.
 - Render: also works well with the included Dockerfile.
 - Fly.io: good later if you are comfortable with a slightly more technical CLI.
 
@@ -45,7 +54,7 @@ Set these in the hosting provider's dashboard. Never put real secrets in GitHub
 or chat.
 
 ```text
-API_KEY=sk-your-real-provider-key
+API_KEY=<provider-api-key>
 BASE_URL=https://api.gptsapi.net/v1
 MODEL=gpt-5.4-mini
 TRANSCRIPTION_MODEL=whisper-1
@@ -56,7 +65,7 @@ MAX_ANSWER_CHARS=4000
 MAX_SESSION_MESSAGES=120
 MAX_TTS_CHARS=1200
 TTS_CACHE_MAX_ITEMS=64
-ADMIN_TOKEN=replace-with-a-long-random-token
+ADMIN_TOKEN=<long-random-admin-token>
 TELEMETRY_MAX_EVENTS=500
 ```
 
@@ -72,8 +81,8 @@ it with the real public domain.
 
 ## Railway path
 
-1. Put this project into a private GitHub repository.
-2. In Railway, create a new project from that repository.
+1. Connect Railway to `waterhomie/examiner-victoria-v2`.
+2. Use the production branch and repository root.
 3. Choose Dockerfile build if Railway asks for the builder.
 4. Add the environment variables above.
 5. Deploy and open the generated Railway domain.
@@ -148,7 +157,11 @@ powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deployed_v2.ps1 
   -AdminToken "your-admin-token"
 ```
 
-For GitHub-to-Railway sync, use the dry-run first:
+Legacy note: before the repository root was cleaned up, deployment used a
+temporary GitHub sync helper. Do not use that helper for normal development now;
+push normal branches and let Railway build from the repository root.
+
+If you ever need to inspect the legacy helper, use the dry-run first:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\sync_public_deploy_github.ps1

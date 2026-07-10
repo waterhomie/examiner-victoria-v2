@@ -96,15 +96,14 @@ powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_local_preview.ps
 
 ## 4. Pass/fail rule
 
-V2 can replace the Streamlit link only after:
+Use this checklist as production V2 mobile regression evidence. A release is
+acceptable when:
 
 - desktop check passes,
-- iPhone Safari voice loop passes,
+- iPhone Safari voice loop passes or has a clear tap-to-play fallback,
 - WeChat in-app browser opens the app and at least text mode works,
 - one full IELTS flow reaches Score,
 - and the backend is deployed with API keys kept server-side only.
-
-Until then, keep Streamlit as the public stable fallback.
 
 After a real-device test, copy the result template and fill it in:
 
@@ -112,7 +111,7 @@ After a real-device test, copy the result template and fill it in:
 Copy-Item .\v2\MOBILE_QA_RESULT.template.md .\v2\MOBILE_QA_RESULT.md
 ```
 
-Use the filled `v2/MOBILE_QA_RESULT.md` as the release-readiness evidence.
+Use the filled `v2/MOBILE_QA_RESULT.md` as mobile-regression evidence.
 
 Then validate the filled result:
 
