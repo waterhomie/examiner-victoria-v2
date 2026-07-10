@@ -1,10 +1,12 @@
-# Development Workflow
+﻿# Development Workflow
 
 This document defines the safe maintenance workflow for Examiner Victoria V2.
 
 ## Canonical Directory
 
-The only formal development directory is:
+Always operate from the root of the currently opened Git repository.
+
+On the primary Windows development machine, the canonical local path is:
 
 ```text
 D:\Software\Codex\Projects\examiner-victoria-v2-canonical

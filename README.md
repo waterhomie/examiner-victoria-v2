@@ -1,4 +1,4 @@
-# Examiner Victoria V2
+﻿# Examiner Victoria V2
 
 Examiner Victoria V2 is a React + FastAPI IELTS speaking coach that runs as a
 single web service: FastAPI serves the React app and the `/api` routes.
@@ -9,10 +9,9 @@ V2 is the current production version and the only main development version.
 It is deployed on Railway from this repository root. The V1 Streamlit app is a
 frozen historical prototype kept only for reference and emergency comparison.
 
-This project was built as a working AI product prototype through collaboration
-with AI coding agents. It is not organized around a traditional full-stack team
-handoff, so the development rules in this repository are part of the product
-maintenance system.
+This project was product-led and implemented with AI coding agents. The work
+focuses on user-flow design, prompt and interaction rules, structured question
+data, testing, deployment, and the delivery of a working AI product prototype.
 
 ## Online Links
 

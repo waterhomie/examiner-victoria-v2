@@ -1,10 +1,12 @@
-# Codex Instructions for Examiner Victoria V2
+﻿# Codex Instructions for Examiner Victoria V2
 
 These rules apply to AI coding agents working in this repository.
 
 ## Repository Boundary
 
-Use this Git repository as the default working scope:
+Always operate from the root of the currently opened Git repository.
+
+On the primary Windows development machine, the canonical local path is:
 
 ```text
 D:\Software\Codex\Projects\examiner-victoria-v2-canonical
