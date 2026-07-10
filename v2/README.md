@@ -1,7 +1,7 @@
 # Examiner Victoria V2
 
-V2 is the migration path from the Streamlit prototype to a real chat-product
-architecture:
+V2 is the production React + FastAPI version of Examiner Victoria. It replaced
+the earlier Streamlit prototype as the main development line:
 
 - React frontend for the iOS/WeChat-style chat experience.
 - Python FastAPI backend for IELTS test state, feedback, transcription, TTS, and reports.
@@ -9,8 +9,8 @@ architecture:
   returns the updated session. This keeps deployment simple and avoids server-side session
   loss across instances.
 
-The original Streamlit app remains the stable production fallback. V2 is built beside it
-instead of replacing it immediately.
+The original Streamlit app is now a frozen historical prototype. Keep it for
+reference only; new feature work should happen in V2.
 
 ## Why V2 exists
 
@@ -40,10 +40,9 @@ Related docs:
 
 Current recommendation:
 
-- Keep the original Streamlit app as the stable public fallback.
-- Treat V2 as the custom React/FastAPI successor and private-beta build.
-- Do not replace the public Streamlit link until V2 frontend and backend are deployed
-  as real services and mobile microphone behavior is live-tested.
+- Treat V2 as the production application and the only main development version.
+- Keep V1 Streamlit frozen as archive/reference material.
+- Use the repository root for deployment, documentation, and Git workflow.
 
 Ready now:
 
@@ -51,15 +50,15 @@ Ready now:
 - Stateless backend API for IELTS session state.
 - Question-bank validation, backend smoke tests, and frontend production build.
 - Custom chat UI, tap-to-record voice input, transcription, TTS playback, scoring reports,
-  practice-record export, and focused practice modes.
+  practice-record export, focused practice modes, mobile chat scrolling, and
+  one-service Railway deployment from the repository root.
 
-Still required before public replacement:
+Still worth improving:
 
-- Public one-service V2 deployment with protected backend environment variables.
-- iPhone Safari and WeChat in-app-browser microphone testing on the public HTTPS URL.
-- Production `CORS_ORIGINS` restricted to the real public domain before wider sharing.
-- iPhone Safari and WeChat in-app-browser microphone testing.
-- Budget-aware rate-limit tuning for the real API provider.
+- User feedback and practice-history storage.
+- Production-grade authentication and user quotas before wider public use.
+- China-accessible deployment or WeChat Mini Program packaging for domestic testers.
+- Budget-aware rate-limit tuning for larger test groups.
 
 Intentionally not included yet:
 
@@ -139,8 +138,8 @@ Run all local checks:
 
 For repeat checks with the cached local dependencies, use `.\v2\scripts\check_v2.ps1 -SkipInstall`.
 
-For iPhone/WeChat microphone testing before public deployment, start the local
-fullstack preview first, then open a temporary HTTPS tunnel:
+For iPhone/WeChat microphone testing before a deployment is available, start the
+local fullstack preview first, then open a temporary HTTPS tunnel:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\start_https_tunnel.ps1 -Port 5174 -Restart
@@ -198,7 +197,7 @@ v2/backend/.env
 Example:
 
 ```env
-API_KEY=sk-your-real-provider-key
+API_KEY=<provider-api-key>
 BASE_URL=https://api.gptsapi.net/v1
 MODEL=gpt-5.4-mini
 TRANSCRIPTION_MODEL=whisper-1
@@ -276,11 +275,10 @@ v2/frontend/.env.example
 - Saves the current practice session locally on a best-effort basis so a refresh can restore the conversation.
 - Local check scripts automatically load the cached backend dependencies under `tmp/v2_backend_deps` when present.
 
-## Still to finish before replacing Streamlit
+## Future product work
 
-- Live-test microphone permissions on iPhone Safari and WeChat in-app browser.
-- Add proper authentication/rate limiting before public launch.
-- Deploy the one-service FastAPI public preview with the included Dockerfile.
+- Add proper authentication, quotas, and practice-history persistence.
+- Add a domestic feedback build or WeChat Mini Program path.
 - Add persistent practice history if user accounts become necessary.
 - Set production `CORS_ORIGINS` to the deployed public domain.
 
