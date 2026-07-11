@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { healthCheck, sendTelemetryEvent } from "./src/api.js";
+import { fetchRuntimeDiagnostics, healthCheck, sendTelemetryEvent } from "./src/api.js";
 import { browserSpeechTranscriptionIsSupported } from "./src/browserSpeechTranscriber.js";
 import { appReducer } from "./src/state/appReducer.js";
 import {
@@ -13,6 +13,13 @@ import {
 } from "./src/state/actions.js";
 import { createInitialAppState } from "./src/state/initialState.js";
 import { selectCapabilities, selectMessages, selectSessionView } from "./src/state/selectors.js";
+import {
+  analyzeUserAgent,
+  buildDiagnosticCopyText,
+  checkLocalStorage,
+  getPageEnvironment,
+  getRecordingSupport,
+} from "./src/utils/runtimeDiagnostics.js";
 
 function setNavigator(value) {
   Object.defineProperty(globalThis, "navigator", {
@@ -184,6 +191,74 @@ async function assertApiErrorMapping() {
   await assert.rejects(healthCheck(), /not reachable/);
 }
 
+
+function assertRuntimeDiagnosticsUtilities() {
+  const wechat = analyzeUserAgent(
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) MicroMessenger/8.0",
+    "iPhone",
+    5,
+  );
+  assert.equal(wechat.isWeChat, true);
+  assert.equal(wechat.isIOS, true);
+  assert.equal(wechat.deviceType, "mobile");
+
+  const android = analyzeUserAgent("Mozilla/5.0 (Linux; Android 14) Chrome/120", "Linux armv8", 5);
+  assert.equal(android.isAndroid, true);
+
+  const page = getPageEnvironment({
+    location: { protocol: "http:", hostname: "example.test" },
+    navigator: { userAgent: "Desktop", platform: "Win32", maxTouchPoints: 0 },
+    secureContext: false,
+  });
+  assert.equal(page.https, false);
+  assert.equal(page.secureContext, false);
+
+  const noRecording = getRecordingSupport({ navigator: {}, window: {} });
+  assert.equal(noRecording.mediaDevices, false);
+  assert.equal(noRecording.getUserMedia, false);
+  assert.equal(noRecording.mediaRecorder, false);
+
+  const withRecording = getRecordingSupport({
+    navigator: { mediaDevices: { getUserMedia() {} } },
+    window: { MediaRecorder: { isTypeSupported: (type) => type === "audio/webm" } },
+  });
+  assert.equal(withRecording.mediaDevices, true);
+  assert.equal(withRecording.getUserMedia, true);
+  assert.equal(withRecording.mediaRecorder, true);
+  assert.equal(withRecording.mimeSupport["audio/webm"], true);
+
+  const unavailableStorage = checkLocalStorage({
+    setItem() {
+      throw new Error("blocked");
+    },
+    removeItem() {},
+  });
+  assert.equal(unavailableStorage.available, false);
+
+  const copyText = buildDiagnosticCopyText({
+    time: "2026-07-12T00:00:00.000Z",
+    environment: { userAgent: "UA", deviceType: "desktop", isWeChat: false, isIOS: false, isAndroid: false, https: true, secureContext: true },
+    recording: { mediaDevices: false, getUserMedia: false, mediaRecorder: false, mimeSupport: {} },
+    api: { status: "failed", elapsedMs: 12, token: "redacted-token", api_key: "redacted-api-key" },
+    playback: { status: "not tested" },
+    storage: { available: true },
+  });
+  assert.doesNotMatch(copyText, /redacted-token|redacted-api-key|api_key|cookie/i);
+}
+
+async function assertRuntimeDiagnosticsApiMapping() {
+  installWindow();
+  setNavigator({ maxTouchPoints: 0, onLine: true, platform: "Win32", userAgent: "Node" });
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/api\/diagnostics\/runtime$/);
+    return {
+      ok: true,
+      json: async () => ({ status: "ok", llm_configured: false, stt_configured: false }),
+    };
+  };
+  const payload = await fetchRuntimeDiagnostics();
+  assert.equal(payload.status, "ok");
+}
 function assertTelemetryFailureIsNonBlocking() {
   installWindow();
   setNavigator({
@@ -208,6 +283,13 @@ function assertChatBottomAnchorContracts() {
   assert.match(chatPanel, /className="chat-scroll-slack"/);
   assert.match(chatPanel, /data-testid="mock-exam-card"/);
   assert.match(chatPanel, /data-testid="replay-question-button"/);
+  const app = readFileSync("./src/App.jsx", "utf8");
+  const header = readFileSync("./src/components/layout/ExamHeader.jsx", "utf8");
+  const diagnosticsPanel = readFileSync("./src/components/layout/RuntimeDiagnosticsPanel.jsx", "utf8");
+  assert.match(app, /RuntimeDiagnosticsPanel/);
+  assert.match(header, /data-testid="runtime-diagnostics-button"/);
+  assert.match(diagnosticsPanel, /data-testid="copy-diagnostics-button"/);
+  assert.match(diagnosticsPanel, /请使用 Safari 或 Chrome 打开/);
   assert.match(chatPanel, /data-testid="mock-question-fallback"/);
   assert.match(chatPanel, /data-testid="chat-scroll-slack"/);
   assert.doesNotMatch(mobileCss, /\.chat-panel\s*>\s*\.message-row:first-child\s*\{[^}]*margin-top:\s*auto/s);
@@ -233,5 +315,7 @@ assertChatBottomAnchorContracts();
 assertReducerFlow();
 assertStageCardSelector();
 assertTelemetryFailureIsNonBlocking();
+assertRuntimeDiagnosticsUtilities();
+await assertRuntimeDiagnosticsApiMapping();
 
 console.log("V2 frontend smoke test passed");

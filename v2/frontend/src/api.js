@@ -66,6 +66,11 @@ export async function fetchPracticeOptions() {
   return response.json();
 }
 
+
+export async function fetchRuntimeDiagnostics() {
+  const response = await request("/api/diagnostics/runtime", { timeoutMs: 8000 });
+  return response.json();
+}
 export async function startSession(settings) {
   const response = await request("/api/sessions", {
     method: "POST",

@@ -84,6 +84,16 @@ MAX_TTS_CHARS = get_positive_int("MAX_TTS_CHARS", 1200)
 TELEMETRY_MAX_EVENTS = get_positive_int("TELEMETRY_MAX_EVENTS", 500)
 ADMIN_TOKEN = get_secret("ADMIN_TOKEN", "")
 
+def get_public_environment_name() -> str:
+    raw = get_secret("APP_ENV") or get_secret("ENVIRONMENT") or get_secret("RAILWAY_ENVIRONMENT") or "development"
+    value = str(raw).strip() or "development"
+    safe = "".join(ch for ch in value if ch.isalnum() or ch in {"-", "_"})
+    return safe[:40] or "development"
+
+
+def frontend_dist_is_available() -> bool:
+    return FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists()
+
 
 def get_runtime_config_summary() -> dict[str, str | bool | None | int]:
     return {
