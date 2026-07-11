@@ -298,6 +298,17 @@ def main() -> None:
     assert health_payload["limits"]["max_audio_upload_mb"] >= 1, health_payload
     assert health_payload["cors_origins"], health_payload
 
+
+    runtime_diagnostics = client.get("/api/diagnostics/runtime")
+    assert runtime_diagnostics.status_code == 200, runtime_diagnostics.text
+    diagnostics_payload = runtime_diagnostics.json()
+    assert diagnostics_payload["status"] == "ok", diagnostics_payload
+    assert "server_timestamp" in diagnostics_payload, diagnostics_payload
+    assert isinstance(diagnostics_payload["llm_configured"], bool), diagnostics_payload
+    assert isinstance(diagnostics_payload["stt_configured"], bool), diagnostics_payload
+    assert "api_key" not in str(diagnostics_payload).lower(), diagnostics_payload
+    assert "sk-" not in str(diagnostics_payload), diagnostics_payload
+    assert "base_url" not in diagnostics_payload, diagnostics_payload
     question_bank = client.get("/api/question-bank")
     assert question_bank.status_code == 200, question_bank.text
     bank = question_bank.json()

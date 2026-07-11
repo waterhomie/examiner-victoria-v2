@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { AnswerComposer } from "./components/layout/AnswerComposer.jsx";
 import { ChatPanel } from "./components/layout/ChatPanel.jsx";
 import { ExamHeader } from "./components/layout/ExamHeader.jsx";
 import { ExamStageCard } from "./components/layout/ExamStageCard.jsx";
 import { MobileToasts } from "./components/layout/MobileToasts.jsx";
+import { RuntimeDiagnosticsPanel } from "./components/layout/RuntimeDiagnosticsPanel.jsx";
 import { PRACTICE_TYPES, STORAGE_KEY, TRAINING_MODES } from "./config/appConfig.js";
 import {
   useAutoScrollToLatest,
@@ -30,6 +31,7 @@ export default function App() {
   const shortScrollSlackRef = useRef(null);
   const startupRecoveryAttemptedRef = useRef(false);
   const submitAnswerRef = useRef(null);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
   const setBusy = useCallback((busy) => dispatch(busySet(busy)), []);
   const setDraft = useCallback((draft) => dispatch(draftSet(draft)), []);
@@ -223,8 +225,12 @@ export default function App() {
         toggleAudioEnabled={controller.toggleAudioEnabled}
         trainingMode={state.trainingMode}
         trainingModes={TRAINING_MODES}
+        openRuntimeDiagnostics={() => setDiagnosticsOpen(true)}
       />
-      {sessionView.shouldShowStageCard ? (
+      {diagnosticsOpen ? (
+        <RuntimeDiagnosticsPanel onClose={() => setDiagnosticsOpen(false)} />
+      ) : null}
+      {!diagnosticsOpen && sessionView.shouldShowStageCard ? (
         <ExamStageCard
           busy={state.busy}
           changeCueCardTitle={controller.changeCueCardTitle}
@@ -247,7 +253,8 @@ export default function App() {
         />
       ) : null}
 
-      <ChatPanel
+      {!diagnosticsOpen ? (
+        <ChatPanel
         bottomRef={bottomRef}
         busy={state.busy}
         busyLabel={busyLabel}
@@ -266,9 +273,11 @@ export default function App() {
         report={state.report}
         retryLastRecording={retryLastRecording}
         shortScrollSlackRef={shortScrollSlackRef}
-      />
+        />
+      ) : null}
 
-      <MobileToasts
+      {!diagnosticsOpen ? (
+        <MobileToasts
         busy={state.busy}
         busyLabel={busyLabel}
         canRetryRecording={canRetryRecording}
@@ -276,9 +285,11 @@ export default function App() {
         pendingSpeechUrl={pendingSpeechUrl}
         playPendingSpeech={playPendingSpeech}
         retryLastRecording={retryLastRecording}
-      />
+        />
+      ) : null}
 
-      <AnswerComposer
+      {!diagnosticsOpen ? (
+        <AnswerComposer
         busy={state.busy}
         canAnswer={capabilities.canAnswer}
         draft={state.draft}
@@ -297,7 +308,8 @@ export default function App() {
         session={state.session}
         submitTypedAnswer={controller.submitTypedAnswer}
         toggleRecording={handleToggleRecording}
-      />
+        />
+      ) : null}
     </div>
   );
 }
