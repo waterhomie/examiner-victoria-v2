@@ -124,6 +124,29 @@ class TTSRequest(BaseModel):
     session_id: str | None = None
 
 
+class RuntimeDiagnosticsResponse(BaseModel):
+    status: str
+    app: str
+    app_version: str
+    git_sha: str
+    git_sha_short: str
+    build_time: str
+    deploy_target: str
+    source_branch: str
+    environment: str
+    frontend_available: bool
+    llm_configured: bool
+    stt_configured: bool
+    provider_base_configured: bool
+    transcription_model_configured: bool
+    tts_enabled: bool
+    tts_provider: str
+    tts_configured: bool
+    tts_max_concurrency: int
+    tts_rate_limit_per_minute: int
+    server_timestamp: str
+
+
 class TelemetryEvent(BaseModel):
     event: str = Field(min_length=1, max_length=80)
     details: dict[str, Any] = Field(default_factory=dict)

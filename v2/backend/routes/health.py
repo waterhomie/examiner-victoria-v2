@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from ..core import config
 from ..audio_services import normalize_tts_provider_name, tts_provider_is_configured
 from ..engine import get_practice_options, get_question_bank_summary
+from ..schemas import RuntimeDiagnosticsResponse
 
 
 router = APIRouter(prefix="/api", tags=["health"])
@@ -21,12 +22,11 @@ def health() -> dict[str, object]:
 
 
 
-@router.get("/diagnostics/runtime")
-def runtime_diagnostics() -> dict[str, object]:
-    return {
+@router.get("/diagnostics/runtime", response_model=RuntimeDiagnosticsResponse)
+def runtime_diagnostics() -> RuntimeDiagnosticsResponse:
+    payload = {
         "status": "ok",
         "app": "examiner-victoria-v2",
-        "app_version": "0.1.0",
         "environment": config.get_public_environment_name(),
         "frontend_available": config.frontend_dist_is_available(),
         "llm_configured": bool(config.API_KEY and config.MODEL),
@@ -40,6 +40,10 @@ def runtime_diagnostics() -> dict[str, object]:
         "tts_rate_limit_per_minute": config.TTS_RATE_LIMIT_PER_MINUTE,
         "server_timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    payload.update(config.get_build_version_summary())
+    return RuntimeDiagnosticsResponse(**payload)
+
+
 @router.get("/question-bank")
 def question_bank() -> dict[str, int]:
     return get_question_bank_summary()
