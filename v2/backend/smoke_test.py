@@ -121,27 +121,66 @@ def answer_api(
     return response.json()
 
 
+def assert_direct_practice_part1(
+    client: TestClient,
+    session: dict,
+    chosen_topic: str,
+    final_phase: str,
+) -> dict:
+    questions = session["part1_secondary_questions"]
+    opening = session["messages"][0]["content"]
+    assert session["phase"] == "part1", session
+    assert session["part1_topic"] == chosen_topic, session
+    assert 1 <= len(questions) <= 4, session
+    assert len(questions) == len(set(questions)), session
+    assert session["part1_queue"] == questions, session
+    assert session["part1_index"] == 1, session
+    assert session["current_question"] == questions[0], session
+    assert "Part 1 Practice" in opening, opening
+    assert chosen_topic in opening, opening
+    assert questions[0] in opening, opening
+    assert "full name" not in opening.lower(), opening
+    assert exam_flow_service.PART1_FIRST_QUESTION not in opening, opening
+
+    observed_questions = [session["current_question"]]
+    for question_index in range(len(questions)):
+        payload = answer_api(
+            client,
+            session,
+            "This is a deterministic practice answer with a reason and a short example.",
+        )
+        session = payload["session"]
+        if question_index < len(questions) - 1:
+            assert session["phase"] == "part1", session
+            observed_questions.append(session["current_question"])
+        else:
+            assert session["phase"] == final_phase, session
+            if final_phase == "part2_long":
+                assert payload["start_prep_timer"] is True, payload
+
+    assert observed_questions == questions, (observed_questions, questions)
+    assert len(observed_questions) == len(set(observed_questions)), observed_questions
+    return session
+
+
 def assert_focused_practice_flows(client: TestClient, chosen_topic: str, chosen_card: str) -> None:
     part1_session = start_api_session(
         client,
         practice_type="part1",
         part1_topic=chosen_topic,
     )
-    assert part1_session["phase"] == "identity", part1_session
-    assert part1_session["part1_topic"] == chosen_topic, part1_session
-    part1_session = answer_api(client, part1_session, "You can call me Water.")["session"]
-    assert part1_session["phase"] == "part1", part1_session
-    for _ in range(8):
-        part1_payload = answer_api(
-            client,
-            part1_session,
-            "I am a student, and I study architecture because I like designing useful spaces.",
-        )
-        part1_session = part1_payload["session"]
-        if part1_session["phase"] == "complete":
-            break
-    assert part1_session["phase"] == "complete", part1_session
+    part1_session = assert_direct_practice_part1(client, part1_session, chosen_topic, "complete")
     assert part1_session["test_active"] is False, part1_session
+    report = client.post("/api/report", json={"session": part1_session})
+    assert report.status_code == 200, report.text
+
+    full_session = start_api_session(
+        client,
+        practice_type="full",
+        part1_topic=chosen_topic,
+    )
+    full_session = assert_direct_practice_part1(client, full_session, chosen_topic, "part2_long")
+    assert full_session["test_active"] is True, full_session
 
     part2_session = start_api_session(
         client,
@@ -604,19 +643,112 @@ def assert_tts_concurrency_controls(client: TestClient, original_transcribe_audi
         audio_routes.transcribe_audio = original_transcribe_audio
         restore_tts_config(tts_originals)
 
+
+def assert_part1_topic_selection_is_stable() -> None:
+    topic_choices = [
+        {"name": "Random Alpha", "questions": ["A1?", "A2?", "A3?", "A4?", "A5?"]},
+        {"name": "Random Beta", "questions": ["B1?", "B2?"]},
+        {"name": "Chosen Topic", "questions": ["C1?", "C2?", "C3?", "C4?", "C5?"]},
+    ]
+    original_questions = {topic["name"]: list(topic["questions"]) for topic in topic_choices}
+    selected_names: list[str | None] = []
+    random_index = 0
+    original_choose_topic = exam_flow_service.choose_part1_topic
+    original_sample = exam_flow_service.random.sample
+
+    def deterministic_choose_topic(topic_name: str | None = None) -> dict:
+        nonlocal random_index
+        selected_names.append(topic_name)
+        if topic_name == "Chosen Topic":
+            return topic_choices[2]
+        selected = topic_choices[random_index]
+        random_index += 1
+        return selected
+
+    def deterministic_sample(population: list[str], k: int) -> list[str]:
+        return list(reversed(population))[:k]
+
+    try:
+        exam_flow_service.choose_part1_topic = deterministic_choose_topic
+        exam_flow_service.random.sample = deterministic_sample
+        first_random = exam_flow_service.start_session(practice_mode=True, practice_type="part1")
+        second_random = exam_flow_service.start_session(practice_mode=True, practice_type="part1")
+        specified = exam_flow_service.start_session(
+            practice_mode=True,
+            practice_type="part1",
+            part1_topic="Chosen Topic",
+        )
+    finally:
+        exam_flow_service.choose_part1_topic = original_choose_topic
+        exam_flow_service.random.sample = original_sample
+
+    assert selected_names == [None, None, "Chosen Topic"], selected_names
+    assert first_random.part1_topic == "Random Alpha", first_random
+    assert first_random.part1_secondary_questions == ["A5?", "A4?", "A3?", "A2?"], first_random
+    assert second_random.part1_topic == "Random Beta", second_random
+    assert second_random.part1_secondary_questions == ["B2?", "B1?"], second_random
+    assert specified.part1_topic == "Chosen Topic", specified
+    assert specified.part1_secondary_questions == ["C5?", "C4?", "C3?", "C2?"], specified
+    for topic in topic_choices:
+        assert topic["questions"] == original_questions[topic["name"]], topic
+
+
 def assert_mock_mode_starts_cleanly(client: TestClient) -> None:
-    mock_session = start_api_session(
+    branch_cases = [
+        ("I am a student at university.", exam_flow_service.PART1_STUDY_QUESTIONS),
+        ("I work as an architect.", exam_flow_service.PART1_WORK_QUESTIONS),
+        ("I am taking some time off at the moment.", exam_flow_service.PART1_GENERAL_FOLLOWUPS),
+    ]
+    for status_answer, expected_pool in branch_cases:
+        mock_session = start_api_session(
+            client,
+            practice_mode=False,
+            practice_type="full",
+            answer_expansion_mode=False,
+        )
+        assert mock_session["practice_mode"] is False, mock_session
+        assert mock_session["part3_target_count"] == 4, mock_session
+        assert mock_session["phase"] == "identity", mock_session
+        assert mock_session["current_question"] == exam_flow_service.FIRST_MESSAGE, mock_session
+        assert len(mock_session["part1_secondary_questions"]) == 3, mock_session
+
+        name_payload = answer_api(client, mock_session, "You can call me Water.")
+        mock_session = name_payload["session"]
+        assert mock_session["phase"] == "part1", mock_session
+        assert name_payload["assistant_message"]["content"] == exam_flow_service.PART1_FIRST_QUESTION, name_payload
+        assert "natural version" not in name_payload["assistant_message"]["content"].lower(), name_payload
+
+        branch_payload = answer_api(client, mock_session, status_answer)
+        mock_session = branch_payload["session"]
+        assert mock_session["phase"] == "part1", mock_session
+        assert len(mock_session["part1_queue"]) == 5, mock_session
+        assert all(question in expected_pool for question in mock_session["part1_queue"][:2]), mock_session
+        assert mock_session["part1_index"] == 1, mock_session
+        assert mock_session["current_question"] == mock_session["part1_queue"][0], mock_session
+        if status_answer.startswith("I am a student"):
+            for _ in range(len(mock_session["part1_queue"])):
+                branch_payload = answer_api(client, mock_session, "A concise mock-mode answer.")
+                mock_session = branch_payload["session"]
+            assert mock_session["phase"] == "part2_long", mock_session
+            assert branch_payload["start_prep_timer"] is True, branch_payload
+
+    mock_part1 = start_api_session(
         client,
         practice_mode=False,
-        practice_type="full",
+        practice_type="part1",
         answer_expansion_mode=False,
     )
-    assert mock_session["practice_mode"] is False, mock_session
-    assert mock_session["part3_target_count"] == 4, mock_session
-    mock_payload = answer_api(client, mock_session, "You can call me Water.")
-    mock_session = mock_payload["session"]
-    assert mock_session["phase"] == "part1", mock_session
-    assert "natural version" not in mock_payload["assistant_message"]["content"].lower(), mock_payload
+    assert mock_part1["phase"] == "identity", mock_part1
+    name_payload = answer_api(client, mock_part1, "You can call me Water.")
+    mock_part1 = name_payload["session"]
+    assert name_payload["assistant_message"]["content"] == exam_flow_service.PART1_FIRST_QUESTION, name_payload
+    status_payload = answer_api(client, mock_part1, "I work as an architect.")
+    mock_part1 = status_payload["session"]
+    assert len(mock_part1["part1_queue"]) == 5, mock_part1
+    for _ in range(len(mock_part1["part1_queue"])):
+        mock_part1 = answer_api(client, mock_part1, "A concise mock Part 1 answer.")["session"]
+    assert mock_part1["phase"] == "complete", mock_part1
+    assert mock_part1["test_active"] is False, mock_part1
 
 
 def main() -> None:
@@ -1023,7 +1155,7 @@ def main() -> None:
     )
     assert start.status_code == 200, start.text
     session = start.json()["session"]
-    assert session["phase"] == "identity"
+    assert session["phase"] == "part1"
 
     part2_start = client.post(
         "/api/sessions",
@@ -1069,6 +1201,7 @@ def main() -> None:
     assert topic_start.status_code == 200, topic_start.text
     assert topic_start.json()["session"]["part1_topic"] == chosen_topic, topic_start.text
 
+    assert_part1_topic_selection_is_stable()
     assert_focused_practice_flows(client, chosen_topic, chosen_card)
     assert_mock_mode_starts_cleanly(client)
     assert_part3_hybrid_strategy(client, chosen_card)

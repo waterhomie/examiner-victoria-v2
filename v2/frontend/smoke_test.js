@@ -72,6 +72,23 @@ function assertReducerFlow() {
   state = appReducer(state, sessionStartSucceeded(createSession({ voice_playback_enabled: false })));
   assert.equal(state.busy, "");
   assert.equal(state.audioEnabled, false);
+  assert.equal(state.selectedPart1Topic, "work or studies");
+
+  let randomTopicState = createInitialAppState();
+  randomTopicState = appReducer(
+    randomTopicState,
+    sessionStartRequested({
+      practiceType: "part1",
+      selectedCueCardTitle: "",
+      selectedPart1Topic: "",
+      trainingMode: "practice",
+    }),
+  );
+  randomTopicState = appReducer(
+    randomTopicState,
+    sessionStartSucceeded(createSession({ part1_topic: "music" })),
+  );
+  assert.equal(randomTopicState.selectedPart1Topic, "");
 
   state = appReducer(state, answerRequested());
   assert.equal(state.busy, "thinking");
