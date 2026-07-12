@@ -351,7 +351,17 @@ function assertChatBottomAnchorContracts() {
   const header = readFileSync("./src/components/layout/ExamHeader.jsx", "utf8");
   const diagnosticsPanel = readFileSync("./src/components/layout/RuntimeDiagnosticsPanel.jsx", "utf8");
   assert.match(app, /RuntimeDiagnosticsPanel/);
-  assert.match(header, /data-testid="runtime-diagnostics-button"/);
+  assert.doesNotMatch(header, /data-testid="runtime-diagnostics-button"/);
+  assert.equal(
+    (header.match(/data-testid="mobile-runtime-diagnostics-button"/g) || []).length,
+    1,
+  );
+  assert.match(header, /onClick=\{openRuntimeDiagnostics\} data-testid="mobile-runtime-diagnostics-button"/);
+  assert.match(header, /<summary>More<\/summary>/);
+  assert.match(header, /data-testid="mobile-sound-toggle"/);
+  assert.match(header, /data-testid="mobile-score-button"/);
+  assert.match(header, /data-testid="mobile-export-button"/);
+  assert.match(header, /data-testid="mobile-restart-button"/);
   assert.match(diagnosticsPanel, /data-testid="copy-diagnostics-button"/);
   assert.match(diagnosticsPanel, /请使用 Safari 或 Chrome 打开/);
   assert.match(chatPanel, /data-testid="mock-question-fallback"/);

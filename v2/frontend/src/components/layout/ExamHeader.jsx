@@ -77,9 +77,6 @@ export function ExamHeader({
         >
           {audioEnabled ? "Sound on" : "Sound off"}
         </button>
-        <button className="ghost-button" type="button" onClick={openRuntimeDiagnostics} data-testid="runtime-diagnostics-button">
-          System check
-        </button>
         <div className="desktop-action-buttons">
           {canScoreNow ? (
             <button className="ghost-button" type="button" onClick={requestReport} data-testid="score-button">
