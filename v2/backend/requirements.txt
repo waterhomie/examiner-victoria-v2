@@ -4,3 +4,4 @@ python-multipart>=0.0.9,<1
 pydantic>=2,<3
 openai>=1.0,<2
 gTTS>=2.5,<3
+tencentcloud-sdk-python>=3.0,<4

@@ -205,7 +205,7 @@ export function useExamController({
         if (data.start_prep_timer) {
           dispatch(prepTimerSet(part2PrepEndsAt(), Date.now()));
         }
-        void playSpeech(data.spoken_text);
+        void playSpeech(data.spoken_text, data.session?.session_id);
       } catch (err) {
         sendTelemetryEvent("answer-error", {
           durationMs: Date.now() - answerStartedAt,

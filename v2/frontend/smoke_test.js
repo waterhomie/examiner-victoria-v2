@@ -201,12 +201,14 @@ async function assertTtsFailureMapping() {
   globalThis.fetch = async (url, options) => {
     assert.match(String(url), /\/api\/tts$/);
     assert.equal(options?.method, "POST");
-    assert.match(String(options?.body || ""), /Hello/);
+    const payload = JSON.parse(String(options?.body || "{}"));
+    assert.equal(payload.text, "Hello");
+    assert.equal(payload.session_id, "session-1");
     const error = new Error("aborted");
     error.name = "AbortError";
     throw error;
   };
-  await assert.rejects(synthesizeSpeech("Hello"), new RegExp(VOICE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  await assert.rejects(synthesizeSpeech("Hello", "session-1"), new RegExp(VOICE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.equal(
     friendlyError(new Error(VOICE_UNAVAILABLE_MESSAGE), "fallback"),
     VOICE_UNAVAILABLE_MESSAGE,
@@ -218,7 +220,7 @@ async function assertTtsFailureMapping() {
     statusText: "Gateway Timeout",
     json: async () => ({ detail: VOICE_UNAVAILABLE_MESSAGE }),
   });
-  await assert.rejects(synthesizeSpeech("Hello"), new RegExp(VOICE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  await assert.rejects(synthesizeSpeech("Hello", "session-1"), new RegExp(VOICE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.equal(
     friendlyError(new Error("Request timed out. Victoria's server may be waking up; please try again."), "fallback"),
     "Victoria's server is taking too long to respond. It may be waking up, so please try again in a moment.",

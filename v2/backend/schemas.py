@@ -121,6 +121,7 @@ class TranscriptionResponse(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str
+    session_id: str | None = None
 
 
 class TelemetryEvent(BaseModel):

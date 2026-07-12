@@ -191,8 +191,8 @@ export default function App() {
 
   const replayCurrentQuestion = useCallback(() => {
     const question = state.session?.current_question;
-    if (question) void playSpeech(question);
-  }, [playSpeech, state.session?.current_question]);
+    if (question) void playSpeech(question, state.session?.session_id);
+  }, [playSpeech, state.session?.current_question, state.session?.session_id]);
 
   const handleToggleRecording = useCallback(() => {
     if (!recording) {
