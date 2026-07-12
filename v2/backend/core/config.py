@@ -47,6 +47,14 @@ def get_positive_int(name: str, default: int) -> int:
         return default
 
 
+def get_int(name: str, default: int) -> int:
+    raw = get_secret(name, str(default))
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+
+
 def get_rate_limit_per_minute() -> int:
     raw = get_secret("RATE_LIMIT_PER_MINUTE", "120")
     try:
@@ -76,12 +84,23 @@ BASE_URL = get_secret("BASE_URL", "https://api.gptsapi.net/v1")
 MODEL = get_secret("MODEL", "gpt-5.4-mini")
 TRANSCRIPTION_MODEL = get_secret("TRANSCRIPTION_MODEL", "whisper-1")
 TTS_CACHE_MAX_ITEMS = get_positive_int("TTS_CACHE_MAX_ITEMS", 64)
+TTS_PROVIDER = (get_secret("TTS_PROVIDER", "disabled") or "disabled").strip().lower()
+TENCENTCLOUD_SECRET_ID = get_secret("TENCENTCLOUD_SECRET_ID", "")
+TENCENTCLOUD_SECRET_KEY = get_secret("TENCENTCLOUD_SECRET_KEY", "")
+TENCENT_TTS_REGION = get_secret("TENCENT_TTS_REGION", "ap-shanghai")
+TENCENT_TTS_VOICE_TYPE = get_secret("TENCENT_TTS_VOICE_TYPE", "")
+TENCENT_TTS_CODEC = (get_secret("TENCENT_TTS_CODEC", "mp3") or "mp3").strip().lower()
+TENCENT_TTS_SAMPLE_RATE = get_positive_int("TENCENT_TTS_SAMPLE_RATE", 16000)
+TENCENT_TTS_SPEED = get_int("TENCENT_TTS_SPEED", 0)
+TENCENT_TTS_VOLUME = get_int("TENCENT_TTS_VOLUME", 0)
+TENCENT_TTS_MAX_TEXT_CHARS = get_positive_int("TENCENT_TTS_MAX_TEXT_CHARS", 150)
 MAX_AUDIO_UPLOAD_BYTES = get_max_audio_upload_bytes()
 RATE_LIMIT_PER_MINUTE = get_rate_limit_per_minute()
 MAX_ANSWER_CHARS = get_positive_int("MAX_ANSWER_CHARS", 4000)
 MAX_SESSION_MESSAGES = get_positive_int("MAX_SESSION_MESSAGES", 120)
 MAX_TTS_CHARS = get_positive_int("MAX_TTS_CHARS", 1200)
 TTS_TIMEOUT_SECONDS = get_positive_int("TTS_TIMEOUT_SECONDS", 10)
+TTS_EXECUTOR_WORKERS = get_positive_int("TTS_EXECUTOR_WORKERS", 1)
 TELEMETRY_MAX_EVENTS = get_positive_int("TELEMETRY_MAX_EVENTS", 500)
 ADMIN_TOKEN = get_secret("ADMIN_TOKEN", "")
 
