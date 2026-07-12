@@ -100,10 +100,10 @@ export async function transcribeAudio(blob) {
   return response.json();
 }
 
-export async function synthesizeSpeech(text) {
+export async function synthesizeSpeech(text, sessionId = "") {
   const response = await request("/api/tts", {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, session_id: sessionId || undefined }),
     timeoutMs: TTS_TIMEOUT_MS,
     timeoutMessage: TTS_TIMEOUT_MESSAGE,
   });

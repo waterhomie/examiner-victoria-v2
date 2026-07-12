@@ -36,6 +36,8 @@ def runtime_diagnostics() -> dict[str, object]:
         "tts_enabled": tts_provider_is_configured(),
         "tts_provider": normalize_tts_provider_name(),
         "tts_configured": tts_provider_is_configured(),
+        "tts_max_concurrency": config.TTS_MAX_CONCURRENCY,
+        "tts_rate_limit_per_minute": config.TTS_RATE_LIMIT_PER_MINUTE,
         "server_timestamp": datetime.now(timezone.utc).isoformat(),
     }
 @router.get("/question-bank")

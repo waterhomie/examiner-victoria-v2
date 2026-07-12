@@ -93,14 +93,18 @@ TENCENT_TTS_CODEC = (get_secret("TENCENT_TTS_CODEC", "mp3") or "mp3").strip().lo
 TENCENT_TTS_SAMPLE_RATE = get_positive_int("TENCENT_TTS_SAMPLE_RATE", 16000)
 TENCENT_TTS_SPEED = get_int("TENCENT_TTS_SPEED", 0)
 TENCENT_TTS_VOLUME = get_int("TENCENT_TTS_VOLUME", 0)
-TENCENT_TTS_MAX_TEXT_CHARS = get_positive_int("TENCENT_TTS_MAX_TEXT_CHARS", 150)
+TTS_MAX_TEXT_CHARS = get_positive_int("TTS_MAX_TEXT_CHARS", 300)
+TENCENT_TTS_MAX_TEXT_CHARS = get_positive_int("TENCENT_TTS_MAX_TEXT_CHARS", TTS_MAX_TEXT_CHARS)
+TTS_MAX_CONCURRENCY = get_positive_int("TTS_MAX_CONCURRENCY", 3)
+TTS_MAX_CONCURRENCY_PER_SESSION = get_positive_int("TTS_MAX_CONCURRENCY_PER_SESSION", 1)
+TTS_RATE_LIMIT_PER_MINUTE = get_positive_int("TTS_RATE_LIMIT_PER_MINUTE", 3)
+TTS_QUEUE_TIMEOUT_SECONDS = get_positive_int("TTS_QUEUE_TIMEOUT_SECONDS", 3)
 MAX_AUDIO_UPLOAD_BYTES = get_max_audio_upload_bytes()
 RATE_LIMIT_PER_MINUTE = get_rate_limit_per_minute()
 MAX_ANSWER_CHARS = get_positive_int("MAX_ANSWER_CHARS", 4000)
 MAX_SESSION_MESSAGES = get_positive_int("MAX_SESSION_MESSAGES", 120)
-MAX_TTS_CHARS = get_positive_int("MAX_TTS_CHARS", 1200)
+MAX_TTS_CHARS = get_positive_int("MAX_TTS_CHARS", TTS_MAX_TEXT_CHARS)
 TTS_TIMEOUT_SECONDS = get_positive_int("TTS_TIMEOUT_SECONDS", 10)
-TTS_EXECUTOR_WORKERS = get_positive_int("TTS_EXECUTOR_WORKERS", 1)
 TELEMETRY_MAX_EVENTS = get_positive_int("TELEMETRY_MAX_EVENTS", 500)
 ADMIN_TOKEN = get_secret("ADMIN_TOKEN", "")
 
@@ -133,5 +137,5 @@ def get_runtime_limits_summary() -> dict[str, int | float]:
         "rate_limit_per_minute": RATE_LIMIT_PER_MINUTE,
         "max_answer_chars": MAX_ANSWER_CHARS,
         "max_session_messages": MAX_SESSION_MESSAGES,
-        "max_tts_chars": MAX_TTS_CHARS,
+        "max_tts_chars": TTS_MAX_TEXT_CHARS,
     }

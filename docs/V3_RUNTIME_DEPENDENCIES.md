@@ -93,6 +93,7 @@ STT 服务端路径使用 OpenAI-compatible client 的 audio transcriptions 能�
 - When `TTS_PROVIDER` is unset, the backend defaults to `disabled` and uses text fallback; CloudBase / non-local runtime must not default to gTTS.
 - gTTS 在国内 CloudBase 出网链路中存在可达性和延迟风险。
 - TTS failure must not block completed STT, LLM, text feedback, next question, or session state.
+- TTS admission uses env-configurable global concurrency, per-session concurrency, per-session rate limiting, and bounded queue timeout; it does not add automatic retries.
 - Tencent Cloud TTS uses the official Python SDK 3.0 `TextToVoice` API; automated tests use mocks and do not call the real API.
 - `VoiceType` must be confirmed in Tencent Cloud Console or API Explorer before setting runtime configuration. The repository does not hard-code a paid voice.
 
@@ -108,7 +109,11 @@ Runtime variable names:
 - `TENCENT_TTS_SPEED`
 - `TENCENT_TTS_VOLUME`
 - `TENCENT_TTS_MAX_TEXT_CHARS`
+- `TTS_MAX_TEXT_CHARS`
+- `TTS_MAX_CONCURRENCY`
+- `TTS_MAX_CONCURRENCY_PER_SESSION`
+- `TTS_RATE_LIMIT_PER_MINUTE`
+- `TTS_QUEUE_TIMEOUT_SECONDS`
 - `TTS_TIMEOUT_SECONDS`
-- `TTS_EXECUTOR_WORKERS`
 
 Do not place Tencent Cloud credentials in GitHub, frontend `VITE_` variables, README, logs, or screenshots.

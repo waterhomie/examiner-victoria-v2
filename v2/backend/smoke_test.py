@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import threading
 import sys
+import time
 import types
 
 from fastapi.testclient import TestClient
@@ -283,6 +285,11 @@ def set_tts_config(
     secret_id: str = "",
     secret_key: str = "",
     voice_type: str = "",
+    max_concurrency: int = 3,
+    per_session_concurrency: int = 1,
+    rate_limit_per_minute: int = 60,
+    queue_timeout_seconds: int = 1,
+    max_text_chars: int = 300,
 ) -> dict[str, object]:
     originals = {
         "provider": config.TTS_PROVIDER,
@@ -294,6 +301,11 @@ def set_tts_config(
         "sample_rate": config.TENCENT_TTS_SAMPLE_RATE,
         "speed": config.TENCENT_TTS_SPEED,
         "volume": config.TENCENT_TTS_VOLUME,
+        "tts_max_concurrency": config.TTS_MAX_CONCURRENCY,
+        "tts_max_concurrency_per_session": config.TTS_MAX_CONCURRENCY_PER_SESSION,
+        "tts_rate_limit_per_minute": config.TTS_RATE_LIMIT_PER_MINUTE,
+        "tts_queue_timeout_seconds": config.TTS_QUEUE_TIMEOUT_SECONDS,
+        "tts_max_text_chars": config.TTS_MAX_TEXT_CHARS,
     }
     config.TTS_PROVIDER = provider
     config.TENCENTCLOUD_SECRET_ID = secret_id
@@ -304,6 +316,12 @@ def set_tts_config(
     config.TENCENT_TTS_SAMPLE_RATE = 16000
     config.TENCENT_TTS_SPEED = 0
     config.TENCENT_TTS_VOLUME = 0
+    config.TTS_MAX_CONCURRENCY = max_concurrency
+    config.TTS_MAX_CONCURRENCY_PER_SESSION = per_session_concurrency
+    config.TTS_RATE_LIMIT_PER_MINUTE = rate_limit_per_minute
+    config.TTS_QUEUE_TIMEOUT_SECONDS = queue_timeout_seconds
+    config.TTS_MAX_TEXT_CHARS = max_text_chars
+    audio_routes._reset_tts_admission_state_for_tests()
     audio_services.TTS_CACHE.clear()
     return originals
 
@@ -318,6 +336,12 @@ def restore_tts_config(originals: dict[str, object]) -> None:
     config.TENCENT_TTS_SAMPLE_RATE = originals["sample_rate"]
     config.TENCENT_TTS_SPEED = originals["speed"]
     config.TENCENT_TTS_VOLUME = originals["volume"]
+    config.TTS_MAX_CONCURRENCY = originals["tts_max_concurrency"]
+    config.TTS_MAX_CONCURRENCY_PER_SESSION = originals["tts_max_concurrency_per_session"]
+    config.TTS_RATE_LIMIT_PER_MINUTE = originals["tts_rate_limit_per_minute"]
+    config.TTS_QUEUE_TIMEOUT_SECONDS = originals["tts_queue_timeout_seconds"]
+    config.TTS_MAX_TEXT_CHARS = originals["tts_max_text_chars"]
+    audio_routes._reset_tts_admission_state_for_tests()
     audio_services.TTS_CACHE.clear()
 
 
@@ -394,6 +418,134 @@ def restore_fake_tencent_sdk(originals: dict[str, object | None]) -> None:
         else:
             sys.modules[name] = module
 
+def assert_tts_concurrency_controls(client: TestClient, original_transcribe_audio) -> None:
+    original_synthesize_speech = audio_routes.synthesize_speech
+    tts_originals = set_tts_config(
+        provider="gtts",
+        max_concurrency=3,
+        per_session_concurrency=1,
+        rate_limit_per_minute=60,
+        queue_timeout_seconds=1,
+        max_text_chars=300,
+    )
+    original_tts_timeout = config.TTS_TIMEOUT_SECONDS
+    try:
+        config.TTS_TIMEOUT_SECONDS = 5
+        active = 0
+        max_active = 0
+        active_lock = threading.Lock()
+        all_three_active = threading.Event()
+        release_tts = threading.Event()
+        responses: dict[str, object] = {}
+        errors: dict[str, str] = {}
+
+        def slow_synthesize_speech(text: str) -> audio_services.TTSResult:
+            nonlocal active, max_active
+            with active_lock:
+                active += 1
+                max_active = max(max_active, active)
+                if active == 3:
+                    all_three_active.set()
+            try:
+                release_tts.wait(3)
+                return audio_services.TTSResult(
+                    audio=f"audio:{text}".encode("utf-8"),
+                    content_type="audio/mpeg",
+                    provider="mock",
+                )
+            finally:
+                with active_lock:
+                    active -= 1
+
+        def post_tts(name: str, session_id: str) -> None:
+            try:
+                responses[name] = client.post(
+                    "/api/tts",
+                    json={"text": f"Hello {name}", "session_id": session_id},
+                )
+            except Exception as error:  # pragma: no cover - kept for thread diagnostics
+                errors[name] = str(error)
+
+        audio_routes.synthesize_speech = slow_synthesize_speech
+        threads = [
+            threading.Thread(target=post_tts, args=(name, f"session-{name}"), daemon=True)
+            for name in ("one", "two", "three")
+        ]
+        for thread in threads:
+            thread.start()
+        assert all_three_active.wait(2), "expected three different sessions to run concurrently"
+
+        queued_out = client.post("/api/tts", json={"text": "Hello four", "session_id": "session-four"})
+        assert queued_out.status_code == 503, queued_out.text
+        assert queued_out.json()["detail"] == "Voice is temporarily unavailable. Continue with the text shown above."
+
+        def successful_transcribe_audio(_audio_bytes: bytes, _mime_type: str) -> str:
+            return "STT is still available while TTS is congested."
+
+        audio_routes.transcribe_audio = successful_transcribe_audio
+        post_tts_transcribe = client.post(
+            "/api/transcribe",
+            files={"file": ("answer.wav", b"0" * 4096, "audio/wav")},
+        )
+        assert post_tts_transcribe.status_code == 200, post_tts_transcribe.text
+        assert "still available" in post_tts_transcribe.json()["text"], post_tts_transcribe.text
+        audio_routes.transcribe_audio = original_transcribe_audio
+
+        release_tts.set()
+        for thread in threads:
+            thread.join(2)
+        assert not errors, errors
+        assert max_active == 3, max_active
+        for name in ("one", "two", "three"):
+            response = responses[name]
+            assert response.status_code == 200, response.text
+
+        audio_routes._reset_tts_admission_state_for_tests()
+        first_started = threading.Event()
+        release_same_session = threading.Event()
+        first_response: dict[str, object] = {}
+
+        def one_session_slow_synthesize(_text: str) -> audio_services.TTSResult:
+            first_started.set()
+            release_same_session.wait(3)
+            return audio_services.TTSResult(audio=b"same-session-audio", content_type="audio/mpeg", provider="mock")
+
+        audio_routes.synthesize_speech = one_session_slow_synthesize
+        first_thread = threading.Thread(target=lambda: first_response.setdefault("response", client.post(
+            "/api/tts",
+            json={"text": "Hello same", "session_id": "same-session"},
+        )), daemon=True)
+        first_thread.start()
+        assert first_started.wait(2), "expected first same-session request to start"
+        duplicate = client.post("/api/tts", json={"text": "Hello duplicate", "session_id": "same-session"})
+        assert duplicate.status_code == 429, duplicate.text
+        assert duplicate.json()["detail"] == "Voice is temporarily unavailable. Continue with the text shown above."
+        release_same_session.set()
+        first_thread.join(2)
+        assert first_response["response"].status_code == 200, first_response["response"].text
+
+        audio_routes._reset_tts_admission_state_for_tests()
+        config.TTS_RATE_LIMIT_PER_MINUTE = 2
+
+        def fast_synthesize_speech(_text: str) -> audio_services.TTSResult:
+            return audio_services.TTSResult(audio=b"fast-audio", content_type="audio/mpeg", provider="mock")
+
+        audio_routes.synthesize_speech = fast_synthesize_speech
+        first_limited = client.post("/api/tts", json={"text": "Rate one", "session_id": "rate-session"})
+        second_limited = client.post("/api/tts", json={"text": "Rate two", "session_id": "rate-session"})
+        third_limited = client.post("/api/tts", json={"text": "Rate three", "session_id": "rate-session"})
+        assert first_limited.status_code == 200, first_limited.text
+        assert second_limited.status_code == 200, second_limited.text
+        assert third_limited.status_code == 429, third_limited.text
+    finally:
+        release_tts.set()
+        if "release_same_session" in locals():
+            release_same_session.set()
+        config.TTS_TIMEOUT_SECONDS = original_tts_timeout
+        audio_routes.synthesize_speech = original_synthesize_speech
+        audio_routes.transcribe_audio = original_transcribe_audio
+        restore_tts_config(tts_originals)
+
 def assert_mock_mode_starts_cleanly(client: TestClient) -> None:
     mock_session = start_api_session(
         client,
@@ -439,6 +591,8 @@ def main() -> None:
     assert "base_url" not in diagnostics_payload, diagnostics_payload
     assert diagnostics_payload["tts_provider"] in {"disabled", "gtts", "tencent"}, diagnostics_payload
     assert isinstance(diagnostics_payload["tts_configured"], bool), diagnostics_payload
+    assert diagnostics_payload["tts_max_concurrency"] == config.TTS_MAX_CONCURRENCY, diagnostics_payload
+    assert diagnostics_payload["tts_rate_limit_per_minute"] == config.TTS_RATE_LIMIT_PER_MINUTE, diagnostics_payload
     assert "secret" not in str(diagnostics_payload).lower(), diagnostics_payload
     question_bank = client.get("/api/question-bank")
     assert question_bank.status_code == 200, question_bank.text
@@ -515,7 +669,7 @@ def main() -> None:
     finally:
         audio_routes.transcribe_audio = original_transcribe_audio
 
-    too_long_tts = client.post("/api/tts", json={"text": "a" * (config.MAX_TTS_CHARS + 1)})
+    too_long_tts = client.post("/api/tts", json={"text": "a" * (config.TTS_MAX_TEXT_CHARS + 1)})
     assert too_long_tts.status_code == 413, too_long_tts.text
 
     original_synthesize_speech = audio_routes.synthesize_speech
@@ -616,6 +770,8 @@ def main() -> None:
         audio_routes.synthesize_speech = original_synthesize_speech
         audio_routes.transcribe_audio = original_transcribe_audio
         restore_tts_config(tts_originals)
+
+    assert_tts_concurrency_controls(client, original_transcribe_audio)
 
     start = client.post(
         "/api/sessions",
