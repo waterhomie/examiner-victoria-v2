@@ -1,6 +1,7 @@
 # Examiner Victoria V3 CloudBase Run 国内入口迁移兼容性审计与实施计划
 
 审计日期：2026-07-12
+状态更新日期：2026-07-13
 目标分支：`v3/domestic-public-beta`
 计划分支：`docs/v3-cloudbase-migration-plan`
 范围：文档审计与迁移计划；不修改业务代码、不创建腾讯云资源、不部署、不替换 LLM/STT/TTS 供应商。
@@ -12,6 +13,16 @@
 但 CloudBase Run 只能解决“国内用户能否稳定打开入口域名与容器服务”的问题，不能自动解决当前 LLM/STT/TTS 仍依赖外部服务的问题。V3 第一阶段应只迁移入口与容器运行环境，先验证首页、静态资源、健康检查、诊断接口、System check、录音权限与音频上传通道；不要同时替换 LLM、STT、TTS。
 
 推荐路线：CloudBase Run 仍作为第一优先候选；腾讯云 Lighthouse 作为可控性更高但运维成本更高的 fallback。若 CloudBase Run 的构建、端口、请求时长、上传大小、出网能力、成本上限或默认域名访问规则任一关键项无法满足，则切换到 Lighthouse 方案。
+
+状态更新（2026-07-13）：
+
+- V3 已部署到腾讯云 CloudBase Run，并完成手机端连续两轮端到端验证。
+- 当前 CloudBase Run 服务使用 `v3/domestic-public-beta` 构建；默认 HTTPS 地址为 `https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com`。
+- 关闭 VPN 后，iPhone Wi-Fi、iPhone 4G 与微信内置浏览器访问均已通过；5G 尚无单独测试记录，不在本文中推断为已验证。
+- 当前 TTS 已从 CloudBase 生产路径中的 gTTS 风险方案切换为腾讯云官方 Python SDK 3.0 `TextToVoice`。
+- 腾讯云 TTS 使用低权限子用户凭证；真实 `SecretId` / `SecretKey` 仅存放在 CloudBase 版本环境变量中。
+- 两轮测试中，`POST /api/transcribe`、`POST /api/answer`、`POST /api/tts` 均返回 `200 OK`。
+- 此前的 TTS `502` 与 “Voice is temporarily unavailable” 已消失；文字降级仍作为异常 fallback 保留。
 
 ## 2. 已验证的 Railway 国内访问问题
 
@@ -99,7 +110,7 @@
 - HTTP 协议：当前无 WebSocket、无 TCP 长连接、无全双工音频。
 - 平台端口：后端通过 `${PORT:-8080}` 启动，并监听 `0.0.0.0`。
 - 健康检查：已有 `/api/health`，且响应已最小化，不泄露 provider、CORS、limits 或模型名。
-- 诊断接口：已有 `/api/diagnostics/runtime`，用于人工验收，字段为非敏感布尔值与时间戳。
+- 诊断接口：已有 `/api/diagnostics/runtime`，用于人工验收；除非敏感状态外，还可返回 TTS region、voice type、codec、sample rate、model type 等公开配置，不返回任何密钥。
 - 无本地持久状态：练习记录主要由前端维护，报告导出是请求内生成，不依赖容器磁盘持久化。
 
 ### 5.2 需要迁移配置但不需要立即改代码的项目
@@ -108,7 +119,31 @@
 - CloudBase 环境变量需要按 Railway 当前变量名重新录入，但不得复制或输出真实 `.env`。
 - 如使用同源默认域名，`CORS_ORIGINS` 可先保持当前策略；如后续前后端拆域，则应单独收紧。
 - `FRONTEND_DIST` 已在 Dockerfile 内设置，通常无需控制台重复设置。
-- CloudBase 默认域名与 HTTPS 入口需要通过实际控制台创建后只读验证。
+- CloudBase 默认 HTTPS 域名已创建并完成国内关闭 VPN 的 iPhone Wi-Fi、4G 与微信内置浏览器访问验证；5G 尚未单独记录。
+
+### 5.2.1 已验证的 CloudBase Tencent TTS 配置
+
+CloudBase 版本环境变量中的非敏感值如下：
+
+```text
+TTS_PROVIDER=tencent
+TENCENT_TTS_REGION=ap-shanghai
+TENCENT_TTS_VOICE_TYPE=501009
+TENCENT_TTS_CODEC=mp3
+TENCENT_TTS_SAMPLE_RATE=16000
+TENCENT_TTS_SPEED=0
+TENCENT_TTS_VOLUME=0
+```
+
+请求参数与已成功的 API Explorer 配置保持一致：`PrimaryLanguage=2`、`ModelType=1`、`VoiceType=501009`、`SampleRate=16000`、`Codec=mp3`。
+
+凭证配置边界：
+
+- 仅使用低权限子用户的 `TENCENTCLOUD_SECRET_ID` 与 `TENCENTCLOUD_SECRET_KEY`。
+- 真实值只存在于 CloudBase 控制台的版本环境变量中。
+- 不写入仓库、`.env`、前端 `VITE_` 变量、构建日志、运行日志、截图或文档。
+- 子用户权限遵循最小权限原则，只授予 TTS 调用所需权限；具体策略名称与范围需以腾讯云当前控制台和官方资料为准。
+- 更换凭证时通过 CloudBase 新版本配置与回滚流程完成，不在代码中硬编码。
 
 ### 5.3 可能需要后续代码或配置调整的项目
 
@@ -118,7 +153,7 @@
 - 如果 CloudBase 请求超时低于 `/api/transcribe`、`/api/answer`、`/api/tts` 的实际耗时，可能需要降低音频时长、拆分链路或调整前端提示。
 - 如果 CloudBase 上传体积限制低于 `MAX_AUDIO_UPLOAD_MB=12` 的默认值，需要先通过环境变量调低限制，再评估是否改前端录音时长。
 - 如果 CloudBase 低成本冷启动影响 System check 或首轮练习体验，可改用高可用最小 1 副本，但会增加费用。
-- 如果 gTTS 或当前 OpenAI-compatible provider 从腾讯云出网不稳定，需要在后续阶段单独评估 provider 迁移；不要与入口迁移合并。
+- 腾讯云 TTS 已在 CloudBase 手机端连续两轮验证通过；后续重点转为长期稳定性、并发、额度、成本和凭证轮换观察。OpenAI-compatible STT/LLM 出网仍需持续监控。
 
 ## 6. 阻断点
 
@@ -187,7 +222,7 @@
 | 音频上传 | `multipart/form-data` 到 `/api/transcribe` | 不变 | 请求体限制、超时 | 不先调用真实 STT；先确认上传限制 |
 | STT | OpenAI-compatible adapter | 不变 | CloudBase 出网到 provider | 第二阶段单独验证 |
 | LLM | OpenAI-compatible chat | 不变 | CloudBase 出网到 provider、成本 | 第二阶段单独验证 |
-| TTS | gTTS 返回 `audio/mpeg` | 不变 | gTTS 出网可达性 | 第二阶段单独验证 |
+| TTS | Tencent Cloud SDK 3.0 `TextToVoice` 返回 MP3 | CloudBase 已验证 | 权限、额度、延迟、并发与成本 | 手机端连续两轮 `/api/tts` 200；继续监控 |
 | 音频播放 | 浏览器播放音频 Blob/URL | 不变 | iOS 自动播放限制 | 继续人工验收 |
 | 报告 | `/api/report` + 前端展示 | 不变 | 请求超时较低 | 短会话验证 |
 | 下载 | 浏览器 Blob 下载 | 不变 | 微信内置浏览器下载限制 | System check/人工记录 |
@@ -283,10 +318,18 @@ Lighthouse 触发条件：
 
 ### Phase 2：音频上传与 provider 出网验证
 
-- 使用短音频验证 `/api/transcribe`。
-- 使用短回答验证 `/api/answer`。
-- 使用短句验证 `/api/tts`。
-- 记录耗时、错误率、成本、日志是否脱敏。
+已完成验证（2026-07-13）：
+
+- 手机端连续完成两轮真实流程。
+- 两轮中的 `POST /api/transcribe`、`POST /api/answer`、`POST /api/tts` 均为 `200 OK`。
+- 腾讯云 TTS 成功返回音频，原 `502` 和 “Voice is temporarily unavailable” 未再出现。
+- 日志与 diagnostics 仅保留非敏感配置和安全错误元数据，不记录凭证、用户完整文本或 Audio Base64。
+- 仍需继续观察更长时间窗口、更多设备、并发、额度与成本；本次结果不代表压力测试结论。
+
+- 已使用手机端短音频验证 `/api/transcribe` 返回 `200 OK`。
+- 已使用手机端短回答验证 `/api/answer` 返回 `200 OK`。
+- 已使用手机端短句验证 `/api/tts` 返回 `200 OK` 并获得音频。
+- 持续记录耗时、错误率、成本与日志脱敏状态。
 - 如任一 provider 不稳定，单独开供应商迁移评估。
 
 ### Phase 3：小规模人工 Beta
@@ -310,7 +353,7 @@ Lighthouse 触发条件：
 | 移动端 | Android Chrome | 录音与播放基本可用 |
 | 微信 | 微信内置浏览器 | 明确提示风险或降级 |
 | 上传 | 短音频 | 不超过平台限制 |
-| Provider | STT/LLM/TTS | 第二阶段才调用 |
+| Provider | STT/LLM/TTS | 手机端连续两轮均返回 200；继续做长期稳定性、更多设备与成本观察 |
 | 回滚 | CloudBase 版本 | 可将流量导回旧版本 |
 | 外部回滚 | Railway | Railway V3/V2 URL 未被覆盖 |
 
