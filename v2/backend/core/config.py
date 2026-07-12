@@ -115,6 +115,32 @@ def get_public_environment_name() -> str:
     return safe[:40] or "development"
 
 
+def get_public_build_metadata_value(name: str, default: str = "unknown") -> str:
+    """Return one explicitly public build value without exposing arbitrary environment data."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = str(raw).strip()
+    if not value:
+        return default
+    safe_characters = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.:/+")
+    if len(value) > 120 or any(character not in safe_characters for character in value):
+        return default
+    return value
+
+
+def get_build_version_summary() -> dict[str, str]:
+    git_sha = get_public_build_metadata_value("APP_GIT_SHA")
+    return {
+        "git_sha": git_sha,
+        "git_sha_short": git_sha[:7] if git_sha != "unknown" else "unknown",
+        "build_time": get_public_build_metadata_value("APP_BUILD_TIME"),
+        "deploy_target": get_public_build_metadata_value("APP_DEPLOY_TARGET"),
+        "app_version": get_public_build_metadata_value("APP_VERSION"),
+        "source_branch": get_public_build_metadata_value("APP_SOURCE_BRANCH"),
+    }
+
+
 def frontend_dist_is_available() -> bool:
     return FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists()
 

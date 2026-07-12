@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import os
 import threading
 import sys
 import time
@@ -582,6 +583,24 @@ def main() -> None:
     runtime_diagnostics = client.get("/api/diagnostics/runtime")
     assert runtime_diagnostics.status_code == 200, runtime_diagnostics.text
     diagnostics_payload = runtime_diagnostics.json()
+    original_diagnostics_fields = {
+        "status",
+        "app",
+        "app_version",
+        "environment",
+        "frontend_available",
+        "llm_configured",
+        "stt_configured",
+        "provider_base_configured",
+        "transcription_model_configured",
+        "tts_enabled",
+        "tts_provider",
+        "tts_configured",
+        "tts_max_concurrency",
+        "tts_rate_limit_per_minute",
+        "server_timestamp",
+    }
+    assert original_diagnostics_fields.issubset(diagnostics_payload), diagnostics_payload
     assert diagnostics_payload["status"] == "ok", diagnostics_payload
     assert "server_timestamp" in diagnostics_payload, diagnostics_payload
     assert isinstance(diagnostics_payload["llm_configured"], bool), diagnostics_payload
@@ -594,6 +613,42 @@ def main() -> None:
     assert diagnostics_payload["tts_max_concurrency"] == config.TTS_MAX_CONCURRENCY, diagnostics_payload
     assert diagnostics_payload["tts_rate_limit_per_minute"] == config.TTS_RATE_LIMIT_PER_MINUTE, diagnostics_payload
     assert "secret" not in str(diagnostics_payload).lower(), diagnostics_payload
+    build_environment_names = {
+        "APP_GIT_SHA": "0123456789abcdef0123456789abcdef01234567",
+        "APP_BUILD_TIME": "2026-07-13T08:30:00Z",
+        "APP_DEPLOY_TARGET": "cloudbase",
+        "APP_SOURCE_BRANCH": "v3/domestic-public-beta",
+        "APP_VERSION": "v3-beta",
+    }
+    original_build_environment = {name: os.environ.get(name) for name in build_environment_names}
+    try:
+        os.environ.update(build_environment_names)
+        configured_payload = client.get("/api/diagnostics/runtime").json()
+        assert configured_payload["git_sha"] == build_environment_names["APP_GIT_SHA"], configured_payload
+        assert configured_payload["git_sha_short"] == "0123456", configured_payload
+        assert configured_payload["build_time"] == build_environment_names["APP_BUILD_TIME"], configured_payload
+        assert configured_payload["deploy_target"] == "cloudbase", configured_payload
+        assert configured_payload["source_branch"] == "v3/domestic-public-beta", configured_payload
+        assert configured_payload["app_version"] == "v3-beta", configured_payload
+        assert original_diagnostics_fields.issubset(configured_payload), configured_payload
+
+        for name in build_environment_names:
+            os.environ.pop(name, None)
+        missing_payload = client.get("/api/diagnostics/runtime").json()
+        for field in ("git_sha", "git_sha_short", "build_time", "deploy_target", "source_branch", "app_version"):
+            assert missing_payload[field] == "unknown", missing_payload
+        assert original_diagnostics_fields.issubset(missing_payload), missing_payload
+
+        serialized_payload = str(configured_payload).lower()
+        for forbidden_name in ("api_key", "token", "cookie", "secret", "environment_variables"):
+            assert forbidden_name not in serialized_payload, configured_payload
+    finally:
+        for name, value in original_build_environment.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
     question_bank = client.get("/api/question-bank")
     assert question_bank.status_code == 200, question_bank.text
     bank = question_bank.json()
