@@ -348,7 +348,7 @@ Lighthouse 触发条件：
 | 后端 | `/api/health` | 200，仅 `status` 与 `app` |
 | 诊断 | `/api/diagnostics/runtime` | 200，非敏感字段 |
 | 安全 | Secret scan | 不出现 key/token/cookie/secret |
-| System check | 桌面 Chrome/Safari | 可打开，可复制脱敏诊断 |
+| System check | 手机端 Safari/Chrome/微信 | 从 `More → System check` 可打开，可复制脱敏诊断 |
 | 移动端 | iPhone Safari | 麦克风提示明确，录音权限流程可理解 |
 | 移动端 | Android Chrome | 录音与播放基本可用 |
 | 微信 | 微信内置浏览器 | 明确提示风险或降级 |
