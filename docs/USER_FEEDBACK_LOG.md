@@ -1,13 +1,16 @@
-# Examiner Victoria V2 User Feedback And Product Decisions
+# Examiner Victoria User Feedback And Product Decisions
 
 ## 1. Record Notes
 
 - Test period: 2026-07
-- Product version: Examiner Victoria V2
+- Product versions: Examiner Victoria V2 and V3 Beta
+- Total anonymized testers: 5
+- Initial V2 testers: 2
+- Additional V3 Beta testers in this round: 3
 - Test surface: mobile Web App
-- Testers: 2 anonymized testers
 - Method: open feedback after real product use
-- Privacy: this document stores anonymized product feedback only. Original chats, identities, answers, audio, screenshots, and contact details are kept outside the Git repository.
+- Privacy: this document stores anonymized product feedback only. Original chats, identities, answers, audio, screenshots, contact details, account identifiers, and other identifying information are kept outside the Git repository.
+- Milestone: the small-scale invitation target of 3-5 testers has been reached. The next phase is feedback classification and targeted directional validation, not immediate feature expansion.
 
 ## 2. Core Findings
 
@@ -18,6 +21,21 @@
 - A tester's intuitive ratio request should not become a fixed algorithmic ratio; quality, relevance, and fallback stability matter more.
 - Pronunciation scoring must be stated as a product boundary because transcription text is not acoustic scoring.
 - Practice history is a valid need, but cloud accounts and databases can remain Roadmap for V2.
+- Users need traceability from the original answer to the key issue, correction, example, and next practice action.
+- Pronunciation scoring and reference-audio playback are separate product problems and must not be presented as the same capability.
+- Local recovery and file export do not fully solve record discoverability when users cannot find previous work.
+- Optional Chinese support may help lower-level Practice users, but it should remain separate from Mock authenticity.
+- Demand has emerged for lightweight playback of correction and natural-version text.
+- Users need help deciding what to say as well as help correcting how they say it.
+- Personalized answer inspiration must use facts voluntarily supplied by the user and must never invent personal experiences.
+- V3 Beta should now classify feedback and run targeted validation rather than immediately implementing every request.
+
+### V3 Beta Round 1 tester signals
+
+- T003 reported a smooth overall flow and good product completeness, then requested clearer report structure, pronunciation support, easier access to practice records, and optional Chinese learning assistance.
+- T004 valued the core combination of text input, voice input, grammar correction, and natural-expression improvement, and requested playback for corrected or improved text.
+- T005 requested answer inspiration grounded in the user's own topics and real experiences, highlighting that some learners need help with what to say, not only how to phrase it.
+- The feedback focus has shifted from basic access and runtime viability toward learning outcomes, report traceability, record management, language assistance, and personalized content. This is a positive signal that the core path is usable, not proof of broad market validation.
 
 ## 3. Feedback Table
 
@@ -31,6 +49,14 @@
 | F-006 | T001 | Wants to choose specific practice topics, such as a Part 1 flowers topic. | Users need targeted practice. | V2 has practice options, Part 1 topic selection, and Part 2 / Part 3 cue-card selection. | Keep the selection flow and validate discoverability; content coverage can be expanded later if demand repeats. | P1 | Partially solved |
 | F-007 | T001 | Wants personal practice records to be saved. | Need to distinguish local export, local recovery, and cloud history. | V2 has report, transcript, practice-record export, and local session recovery. | Keep local export/recovery in V2. Accounts, database history, and cross-device records are Roadmap. | Roadmap | Partially solved |
 | F-008 | T002 | Wants a more live, human-like conversation experience. | This is interaction rhythm, not just a voice button. | React + FastAPI supports continuous turns and TTS, but not full-duplex live voice. | Improve low-cost rhythm first; full-duplex live voice remains Roadmap. | P2 / Roadmap | Roadmap |
+| F-009 | T003 | Wants the complete original transcript before issue-by-issue report analysis, with an additional example where useful. | Report, transcript, and per-answer feedback need clearer traceability without mechanically listing every error. | Report, transcript, and practice-record export exist, but the report does not yet use one consistent original / issue / reason / correction / example / action structure. | Validate a transcript-first report sample and one additional example for key issues; do not promise exhaustive correction. | P1 | Needs validation |
+| F-010 | T003 | Wants pronunciation correction and a pronunciation score in Practice. | Transcription, language feedback, reference playback, and acoustic pronunciation scoring are distinct capabilities. | The product uses transcript, answer content, duration, and WPM; it does not formally score phonemes, stress, connected speech, rhythm, or intonation. | Keep the F-005 boundary, do not infer pronunciation from transcript text, and retain formal acoustic scoring on the Roadmap. | P0 | Confirmed repeated demand |
+| F-011 | T003 | Wants more accurate reference pronunciation or IPA for important content. | Reference audio and IPA can support learning but do not evaluate the user's pronunciation. | TTS exists; word-level dictionary audio, IPA, pronunciation comparison, and acoustic scoring are not implemented. | Research reference-sentence playback, optional key-word audio, and IPA while labeling them clearly as learning aids. | P2 | New request, needs research |
+| F-012 | T003 | Could not find a previous Practice or Mock record after completing a session. | Storage, retention, restart behavior, discoverability, export, and long-term history are different concerns. | Local session recovery plus report, transcript, and practice-record export exist; accounts, cloud history, cross-device records, and a history list do not. | Treat this as partially solved but a confirmed usability issue; audit recovery, restart, and export discoverability before adding a database. | P1 | Partially solved, usability issue confirmed |
+| F-013 | T003 | Wants optional Chinese translation of Victoria's English content in Practice. | Translation may reduce comprehension barriers but can increase visual load and dependence. | The interface primarily provides English prompts and English text fallback; optional Chinese translation is not implemented. | Validate collapsed, on-demand Chinese translation in Practice only; do not enable it by default in Mock. | P2 | New request, needs validation |
+| F-014 | T003 | Wants a Chinese-to-English drill in which the system supplies Chinese ideas and then corrects the user's English. | This is a distinct training mode rather than an extension of the current IELTS Part 1/2/3 flow. | No dedicated Chinese-to-English drill exists, and acoustic pronunciation scoring remains outside current capability. | Record as a separate mode exploration and wait for repeated demand; do not add it to the stable V3 Beta flow now. | Roadmap | New mode idea |
+| F-015 | T004 | Wants corrected or improved wording to play directly as audio. | Learners want to hear natural delivery, but many permanent playback buttons could make feedback visually heavy. | TTS plays Victoria's next question or system speech; direct playback for correction, expression tip, or natural version is not implemented. | Treat tap-to-play correction text as a provisional interaction direction and validate discoverability before implementation. | P1 | Proposed, not implemented |
+| F-016 | T005 | Wants answer ideas and material based on the user's own topics and personal experiences. | The product must distinguish correction, generic examples, idea prompts, personalized material, and complete ghostwritten answers. | Topic and cue-card selection plus answer-level language feedback exist; structured profiles, personalized-material flow, accounts, and long-term personal data storage do not. | Explore an optional Practice-only, session-level idea flow based only on facts the user voluntarily provides; never invent experiences or default to complete scripts. | P2 | New request, needs validation |
 
 ## 4. Detailed Decisions
 
@@ -51,7 +77,7 @@ Product decision:
 - During the mock, do not show per-turn correction, expression coaching, or full transcript as the main UI.
 - After the mock, show transcript, score/report, and downloads.
 
-Status: P1, minimal version implemented, needs 3-5 tester validation.
+Status: P1, minimal version implemented, needs targeted follow-up validation.
 
 ### F-002 | Long-answer correction coverage
 
@@ -126,71 +152,258 @@ V2 supports local report, transcript, practice-record export, and local session 
 
 This is about rhythm and presence, not only a voice feature. Full-duplex live voice requires streaming STT, streaming TTS, interruption handling, and higher cost. V2 should first validate lower-cost improvements: clearer listening/thinking/speaking states, better examiner wording, controllable replay, and lower perceived waiting time.
 
+### F-009 | Transcript-first report traceability
+
+T003 wants the complete original conversation or transcript to remain visible before issue-by-issue analysis. The underlying need is traceability: a learner should be able to move from an original answer to the key issue, why it matters, a corrected version, one additional example, and a next practice action.
+
+Current capability:
+
+- Report generation exists.
+- Full transcript and practice-record downloads exist.
+- Per-turn Practice feedback can include a quick correction, expression tip, and natural version.
+- The report does not yet guarantee one unified transcript-first structure.
+
+Proposed validation structure:
+
+1. Original answer or transcript
+2. Key issue
+3. Why it matters
+4. Corrected version
+5. One additional example
+6. Next practice action
+
+Do not promise word-by-word analysis or mechanically enumerate every error.
+
+Status: P1, needs validation. This task does not change the report implementation or Prompt.
+
+### F-010 | Practice pronunciation correction and scoring
+
+T003's request confirms that pronunciation support is repeated demand, but it does not change the current product boundary. Speech-to-text output cannot establish phoneme accuracy, stress, connected speech, rhythm, intonation, or overall acoustic quality.
+
+Product decision:
+
+- Keep F-005 unchanged.
+- Do not present transcription as pronunciation scoring.
+- Do not claim complete official IELTS scoring coverage.
+- Keep formal acoustic pronunciation assessment on the Roadmap.
+- Treat reference audio, IPA, and user pronunciation scoring as separate capabilities.
+
+Status: P0 Product Boundary / Roadmap, confirmed repeated demand.
+
+### F-011 | Reference audio and IPA assistance
+
+T003 also wants more accurate reference pronunciation or IPA for important content. Reference support can be useful before formal pronunciation scoring exists, but the interface must state what it does and does not prove.
+
+Current capability:
+
+- TTS can synthesize Victoria's questions and system speech.
+- Word-level dictionary pronunciation is not implemented.
+- IPA display is not implemented.
+- User-audio comparison and acoustic scoring are not implemented.
+
+Proposed direction for later research:
+
+- reference-sentence playback;
+- optional playback for selected key words;
+- IPA only where it adds clear learning value;
+- explicit labeling that these aids do not score the learner's pronunciation.
+
+Status: P2, new request and needs research. Not implemented.
+
+### F-012 | Practice and Mock record discoverability
+
+T003 could not find a previous result after completing a Practice or Mock session. This can remain a real usability problem even when some data is technically recoverable or downloadable.
+
+Current capability:
+
+- Local `localStorage` session recovery exists when browser storage is available.
+- Report, transcript, and practice-record text downloads exist.
+- There is no account, cloud database, cross-device history, long-term profile, or explicit recent-sessions list.
+
+Product decision: classify this as **Partially solved, usability issue confirmed**. Before adding a database, audit:
+
+1. whether completed sessions remain recoverable;
+2. what Restart clears;
+3. whether download actions are discoverable;
+4. whether a lightweight Recent Sessions / Records entry is needed.
+
+Status: P1. This round does not add storage or a database.
+
+### F-013 | Optional Chinese translation in Practice
+
+Optional Chinese assistance may reduce the comprehension barrier for lower-level learners, but Practice and Mock have different goals.
+
+Proposed direction:
+
+- Consider Chinese translation only in Practice.
+- Keep Mock English-first and do not show Chinese by default.
+- Validate a collapsed, on-demand translation interaction.
+- Avoid permanently displaying long bilingual blocks.
+
+Status: P2, new request and needs validation. No interface or Prompt change has been implemented.
+
+### F-014 | Chinese-to-English drill mode
+
+This request describes a separate loop:
+
+```text
+Chinese prompt or idea material -> learner's English output -> language correction
+```
+
+It is not a small extension of the current IELTS Part 1, Part 2, or Part 3 flow. The stable V3 Beta should not absorb it without repeated demand and a clear learning objective.
+
+Product decision: retain as a standalone mode exploration. Pronunciation correction within such a mode would still require the acoustic capability described in F-005 and F-010.
+
+Status: Roadmap / Product exploration. Not implemented.
+
+### F-015 | Playback for corrected or improved text
+
+T004 valued text input, voice input, grammar correction, and natural-expression improvement, then requested direct audio playback for the corrected result. The learning need is to hear natural delivery after seeing a better version.
+
+Current capability:
+
+- TTS is implemented.
+- The answer response speaks Victoria's next question or system speech.
+- Correction, expression tip, and natural-version text do not currently have direct playback behavior.
+
+Provisional interaction direction:
+
+- allow the learner to tap selected correction or natural-version text to play it;
+- avoid adding a permanent button beside every text block unless testing shows it is needed;
+- provide a lightweight first-use hint;
+- validate whether playback should cover correction, natural version, examples, or all three;
+- verify that tap-to-play is discoverable and unambiguous on mobile.
+
+Status: P1, proposed and not implemented. This round does not modify TTS or frontend behavior.
+
+### F-016 | Personalized answer inspiration from real experiences
+
+T005 wants the product to help generate relevant answer material from topics and personal experiences. This is not only a language-correction problem: some learners do not know what to say.
+
+Current capability verified from the repository:
+
+- Users can select Part 1 topics and Part 2 / Part 3 cue cards.
+- Practice can provide language feedback on an answer.
+- There is no structured user profile or dedicated personalized-material flow.
+- There is no account or long-term cloud storage for personal context.
+
+Product definition: **Optional personalized answer-inspiration flow**, not automatic generation of complete scripts.
+
+A later low-cost experiment may:
+
+1. appear only in Practice after the user chooses **Help me find ideas**;
+2. ask two or three optional questions relevant to the current topic;
+3. allow every question to be skipped;
+4. use only facts the user voluntarily supplies;
+5. return keywords, answer angles, short experience cues, and useful English expressions;
+6. never invent a life event, relationship, place, or identity for the user;
+7. avoid long-term storage by default;
+8. use session-level context before considering accounts or a database;
+9. avoid describing the repository question bank as an official or complete current IELTS bank without evidence.
+
+Do not default to a complete memorization-ready sample. The purpose is to help the learner form a truthful answer, not replace the learner with a fabricated biography.
+
+Status: P2 / Product exploration, new request and needs validation. Not implemented.
+
 ## 5. Priority Summary
 
-### P0 | Clarify immediately
+### P0 | Product Boundary
 
-- Pronunciation scoring boundary.
-- No exaggerated claim of full official IELTS scoring.
-- Feedback remains anonymized.
+- Do not exaggerate pronunciation-scoring capability.
+- Reference-audio playback is not user pronunciation scoring.
+- Do not claim complete official IELTS scoring coverage.
+- Do not describe a general question bank as an official, complete, current IELTS question bank without evidence.
+- Do not invent personal experiences for the user.
+- Keep all feedback anonymous.
 
-### P1 | Next product validation
+### P1 | Next Validation
 
-- Is feedback direct and actionable enough?
-- Does long-answer feedback catch the most important issues?
-- Does Part 3 dynamic follow-up connect naturally to the previous answer?
-- Does Part 3 fallback work when answers are short or generation fails?
-- Does the voice-first Mock / Exam Mode feel closer to a real exam?
-- Do users prefer per-turn feedback or final-only feedback in mock tests?
-- Is topic/cue-card selection easy to find?
+- Should a report show the complete original transcript before issue cards?
+- Is one additional example more useful than correction alone?
+- Can users find Report, Transcript, and Practice Record actions?
+- Do completed-session recovery and Restart behavior match user expectations?
+- Is tap-to-play correction or natural-version text understandable?
+- Is a first-use playback hint sufficient, or is a persistent icon needed?
+- Does Part 3 dynamic follow-up connect naturally and fall back safely?
+- Does voice-first Mock Mode feel closer to a real exam?
+- Is feedback direct and actionable enough, especially for long answers?
+- Do users prefer per-turn feedback or final-only feedback in Mock?
+- Is topic and cue-card selection easy to find?
 
-### P2 | Low-cost experience improvements
+### P2 | Product Exploration
 
-- Waiting and feedback state clarity.
-- Conversation rhythm.
+- Optional, collapsed Chinese translation in Practice.
+- Reference sentences, selected key-word audio, and IPA assistance.
+- Personalized answer ideas based only on user-provided facts.
+- Session-level personal context before any account or database work.
+- A lightweight interaction that avoids excessive buttons and setup burden.
+- Continued low-cost improvements to conversation rhythm and waiting-state clarity.
 - More natural examiner wording.
-- Playback and replay experience.
+- General playback and replay discoverability.
 
 ### Roadmap
 
 - Full-duplex live voice.
 - Formal acoustic pronunciation scoring.
-- User accounts.
-- Database-backed practice history.
-- Cross-device records.
+- A standalone Chinese-to-English drill mode.
+- Cloud-backed history and recent-session management.
+- User accounts and cross-device records.
+- Long-term user profiles and controlled memory, only after privacy and value validation.
 
 ## 6. Next User Test Plan
 
-- Testers: 3-5 people.
-- Devices: iPhone and Android.
-- Scenarios:
-  1. Part 1 with a selected topic.
-  2. A long answer with many issues.
-  3. Full Part 2 into Part 3 flow.
-  4. Part 3 comparison: mainly bank questions vs bank backbone with answer-driven follow-up.
-  5. Practice Mode vs minimal voice-first Mock Mode.
-  6. Report, transcript, and practice-record export.
-- Observe:
-  - Can testers find topic selection?
-  - Which mode is better for daily practice?
-  - Which mode feels closer to a real exam?
-  - Does hiding text feel immersive or stressful?
-  - Does Part 2 need Cue Card, prep timer, and notes?
-  - Are feedback suggestions actionable?
-  - Do Part 3 follow-ups use the user's answer?
-  - Does fallback feel abrupt?
-  - Do testers understand pronunciation-scoring limits?
-  - Would they use the product again?
+Current cumulative participation:
+
+- Initial V2 testers: 2
+- Additional V3 Beta testers: 3
+- Total anonymized testers: 5
+
+The small-scale invitation target of 3-5 people has been reached. The next phase is **Targeted Follow-up Validation**, not broad invitation volume or immediate implementation of every request.
+
+Validation questions:
+
+1. Can users find Report, Transcript, and Practice Record without help?
+2. Do users want the complete transcript before issue cards?
+3. Is a key issue + correction + example more useful than correction alone?
+4. Will users tap correction or natural-version text to hear it?
+5. Does tap-to-play need an icon, a first-use hint, or both?
+6. Would lower-level Practice users use collapsed Chinese translation without becoming dependent on it?
+7. Is a Chinese-to-English drill a repeated need or a one-off request?
+8. Which answer support is most useful: keywords, idea prompts, personal-experience cues, a partial outline, or a complete sample?
+9. How many optional personalization questions will users tolerate before answering?
+10. Is session-level personalization sufficient without accounts or long-term storage?
+11. Do users understand that personalized material will not invent experiences for them?
+12. Do users understand that the current product does not provide formal acoustic pronunciation scoring?
+
+Continue to record device and browser context, whether Practice, Mock, or both were completed, and whether a tester was trying to recover the same session or find a history list. Do not infer answers that testers have not provided.
 
 ## 7. Portfolio Statement
 
-Invited 2 real users to test the mobile IELTS speaking practice product, converted open feedback into product problems across voice-first mock exams, correction quality, Part 3 follow-up, scoring boundaries, topic selection, practice records, and live conversation feel, then prioritized implemented, validation, and Roadmap items based on user impact, implementation cost, and current technical capability.
+Invited 5 anonymized real users across V2 and V3 Beta to test the mobile IELTS speaking product, captured both positive signals and improvement requests, and translated open feedback into product decisions covering report traceability, actionable correction, pronunciation boundaries, reference audio, practice-history discoverability, optional translation support, lightweight correction playback, and personalized answer inspiration based on user-provided experiences.
+
+This was a small invited-user feedback round, not large-scale user research, formal market validation, commercialization validation, or proof of product-market fit.
 
 ## 8. Open Questions
 
 - What exact devices and browsers did testers use?
 - Did each tester complete full Part 1 / Part 2 / Part 3?
-- Did testers find replay controls without help?
-- What concrete examples made feedback feel indirect?
-- Which live AI product did testers compare against?
-- Would testers want local-only records or cloud records?
+- Did T003 complete Practice, Mock, or both?
+- Did T003 try to recover the same session or look for a history list?
+- Should reports show the full transcript first or issue cards first?
+- Should playback cover correction, natural version, examples, or all three?
+- Is tap-to-play discoverable without a permanent icon?
+- Would optional Chinese translation help without creating dependence?
+- How many users would repeatedly use a Chinese-to-English drill mode?
+- What pronunciation support do users expect: reference audio, IPA, comparison, or formal scoring?
+- Does T005 want idea prompts, answer outlines, or complete sample answers?
+- How many personal questions would users tolerate before practice begins?
+- Which personal facts are most useful for IELTS speaking personalization?
+- Should personal context last only for one session?
+- Would users accept optional local storage of non-sensitive preferences?
+- How can the product prevent personalized material from becoming memorized templates?
+- What concrete examples made earlier feedback feel indirect?
+- Did testers find existing replay controls without help?
+- Which live AI product, if any, did testers compare against?
+- Would users want local-only records or cloud-backed records?
+
+Do not fabricate answers. Resolve these questions only through targeted follow-up or observed product use.
