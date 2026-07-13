@@ -2,7 +2,7 @@
 
 > The active application remains in the legacy-compatible `v2/` directory. Current release facts are maintained in [V3 Current Status](../docs/V3_CURRENT_STATUS.md).
 
-Examiner Victoria uses one Docker container: Vite builds the React frontend, FastAPI serves the resulting static files, and the same HTTPS origin exposes `/api`. This deployment shape is supported on CloudBase Run and remains compatible with Railway.
+The GitHub source repository is [`waterhomie/examiner-victoria`](https://github.com/waterhomie/examiner-victoria). Examiner Victoria uses one Docker container: Vite builds the React frontend, FastAPI serves the resulting static files, and the same HTTPS origin exposes `/api`. This deployment shape is supported on CloudBase Run and remains compatible with Railway.
 
 ## Current deployment roles
 
@@ -10,13 +10,14 @@ Examiner Victoria uses one Docker container: Vite builds the React frontend, Fas
 
 - Region: Shanghai
 - Service: `examiner-victoria-v3-beta`
-- Expected transition source branch: `v3/domestic-public-beta`
+- Source repository: `waterhomie/examiner-victoria`
+- Source branch: `main`
 - Container port: `8080`
 - Public URL: <https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com>
 - Health: `/api/health`
 - Runtime diagnostics: `/api/diagnostics/runtime`
 
-CloudBase deployment and source-branch selection are human-controlled. Do not assume automatic deployment, switch branches, create resources, or publish a new version without explicit authorization.
+The project owner manually verified the first main-based CloudBase deployment and core product flow. CloudBase deployment and source-branch selection remain human-controlled. Do not assume automatic deployment, switch branches, create resources, or publish a new version without explicit authorization.
 
 ### Railway — historical and rollback context
 
@@ -182,7 +183,7 @@ Do not generalize a successful iPhone or WeChat check to all Android devices, ca
 
 - CloudBase: select a previously verified version or traffic target through the console.
 - Git: revert the faulty change; do not rewrite history.
-- V2 baseline: preserve `main`, tag `v2.0.0`, and the frozen V2 Railway service.
-- V3 transition: keep `v3/domestic-public-beta` until the main-based deployment is verified.
+- V2 baseline: preserve tag `v2.0.0`, its frozen commit, and the frozen V2 Railway service.
+- V3 Beta: preserve tag `v3.0.0-beta.1`, its GitHub Pre-release, and verified CloudBase versions.
 
-A repository rename, remote change, V3 tag, or CloudBase source-branch switch is part of the explicit promotion workflow, not a routine deployment step.
+Repository/default-branch changes, tag or Release deletion, remote changes, and CloudBase source-branch changes require explicit human confirmation; they are not routine deployment steps.

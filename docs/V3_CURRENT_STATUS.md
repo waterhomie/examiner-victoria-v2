@@ -4,29 +4,34 @@
 
 ## 1. Status date
 
-This status was consolidated on **2026-07-13** from the current V3 code, deployment evidence, Git history, and reviewed project documentation.
+This status was updated on **2026-07-13** after V3 promotion to `main`, the main-based CloudBase verification reported by the project owner, the V3 Beta tag and Pre-release, the GitHub repository rename, and retirement of the former integration branches.
 
 ## 2. Product stage
 
 Examiner Victoria is in the **V3 Beta** stage. The product is ready for small, targeted invitation testing; it is not presented as a broad public release or as market validation.
 
-## 3. Current integration branch and release line
+## 3. Current release line
 
-- Current integration branch: `v3/domestic-public-beta`
-- Task branches are based on the V3 integration branch and merge back through review
-- `main` remains the frozen V2 release line until an explicit V3 promotion PR is reviewed and merged
-- A V3 release tag has not been created yet
+- Current repository: `waterhomie/examiner-victoria`
+- Default and development branch: `main`
+- Promotion PR: [#20](https://github.com/waterhomie/examiner-victoria/pull/20), merged
+- Promotion merge commit: `b02dd1da2ddf768fd659a29b9f54797a6a025668`
+- Current tag: `v3.0.0-beta.1`
+- GitHub Pre-release: [Examiner Victoria V3.0.0 Beta 1](https://github.com/waterhomie/examiner-victoria/releases/tag/v3.0.0-beta.1)
+- The former `v3/domestic-public-beta` integration branch is retired and deleted
+
+New work branches from `main` and returns to `main` through review.
 
 ## 4. Frozen V2 baseline and repository compatibility
 
-- Branch: `main`
 - Tag: `v2.0.0`
-- Commit: `d592900e29c0cdcc4576d884c178991deea7013c`
+- Frozen commit: `d592900e29c0cdcc4576d884c178991deea7013c`
 - The original V2 Railway deployment remains a historical reference and rollback option
+- V2 history is preserved by its tag, commit, QA evidence, and Release; `main` is now the V3 line
 
-V2 history must not be rewritten or removed during V3 work.
+The current GitHub repository is `waterhomie/examiner-victoria`. Its former name was `waterhomie/examiner-victoria-v2`; GitHub redirects old URLs, but current documentation and Git remotes use the new name.
 
-The GitHub repository is still named `waterhomie/examiner-victoria-v2` for compatibility. The active React and FastAPI application remains under the legacy-named `v2/` directory because imports, Docker paths, tests, and scripts depend on that layout. Neither the repository nor the directory should be renamed as part of ordinary V3 tasks.
+The active React and FastAPI application remains under the legacy-named `v2/` directory because imports, Docker paths, tests, and scripts depend on that layout. Local worktree folder names were also left unchanged. Repository rename, local folder rename, and source-directory migration are separate decisions.
 
 ## 5. Current architecture
 
@@ -42,14 +47,15 @@ The GitHub repository is still named `waterhomie/examiner-victoria-v2` for compa
 The current domestic beta entry is Tencent CloudBase Run in Shanghai:
 
 - Service: `examiner-victoria-v3-beta`
-- Source branch: `v3/domestic-public-beta`
+- Source repository: `waterhomie/examiner-victoria`
+- Source branch: `main`
 - URL: <https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com>
 - Health: <https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com/api/health>
 - Runtime diagnostics: <https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com/api/diagnostics/runtime>
 
-CloudBase automatic deployment is not assumed. Deployment and source-branch changes require explicit human confirmation in the CloudBase console.
+The project owner manually changed CloudBase to build from `main`, deployed the main-based version, and reported that the homepage and core product flow passed manual verification. This document records that owner-provided result; it is not a claim that Codex operated or independently inspected the CloudBase console.
 
-Railway is not the primary domestic V3 entry. The V2 Railway service is a frozen historical/rollback reference, while the V3 Railway beta was an overseas test baseline.
+CloudBase deployment and source-branch changes remain human-controlled. Railway is not the primary domestic V3 entry. The V2 Railway service is a frozen historical/rollback reference, while the V3 Railway beta was an overseas test baseline.
 
 ## 7. Verified domestic access scope
 
@@ -80,22 +86,25 @@ Provider credentials are configured only through the deployment secret store. Do
 - Practice and Mock modes
 - Part 1, Part 2, Part 3, and Full speaking flows
 - voice-first Mock experience
-- direct-topic Part 1 practice
+- direct-topic Part 1 practice with up to four non-duplicate questions
 - recording, STT transcription, LLM feedback, and Tencent TTS playback
 - feedback reports, transcripts, practice records, export, and download
-- runtime diagnostics and the user-facing System check
+- runtime/build diagnostics and the user-facing System check
 - text-first degradation when voice generation is unavailable
 - mobile H5 operation and anonymous feedback collection
 
 ## 10. Recent V3 changes
 
-- established the CloudBase domestic beta deployment
-- added runtime diagnostics and System check
+- established and manually verified the CloudBase domestic beta deployment
+- added runtime/build diagnostics and System check
 - isolated TTS failures from the answer flow and added non-sensitive timing diagnostics
 - integrated Tencent Cloud TTS with least-privilege credential guidance
-- made Practice Part 1 start directly from the selected topic
+- made Practice Part 1 start directly from the selected or random topic
 - completed the first invitation round with five anonymous testers
-- consolidated branch governance and release-transition rules
+- promoted V3 to `main` through PR #20
+- created tag and Pre-release `v3.0.0-beta.1`
+- renamed the GitHub repository to `waterhomie/examiner-victoria`
+- retired the merged feedback, release-consolidation, and V3 integration branches
 
 ## 11. Testing status
 
@@ -113,7 +122,7 @@ V3 Beta does not currently include:
 - accounts or cross-device identity
 - a persistent application database
 - payments
-- a WeChat Mini Program rewrite
+- a WeChat Mini Program release
 - full-duplex real-time voice conversation
 - acoustic pronunciation scoring
 - long-term learner profiles
@@ -123,7 +132,7 @@ These items require separate product decisions and must not be added incidentall
 
 ## 13. Known risks and open validation
 
-- CloudBase source-branch and deployment-version selection remain human-controlled
+- CloudBase deployment-version selection remains human-controlled
 - provider latency, egress reliability, quotas, and monthly spend need continued observation
 - WeChat and iOS media behavior can vary by device and OS version
 - Android, carrier, 5G, and concurrency coverage remain incomplete
@@ -132,33 +141,41 @@ These items require separate product decisions and must not be added incidentall
 
 ## 14. Current development workflow
 
-Until V3 promotion is complete:
+1. fast-forward a clean local `main`
+2. create a short-lived task branch from `main`
+3. make only the authorized change
+4. run deterministic validation
+5. commit and push the task branch
+6. open a PR to `main`
+7. merge only after review
+8. deploy or verify when relevant
+9. confirm the merged branch has no unique commits, then delete it
 
-1. branch from `v3/domestic-public-beta`
-2. open task PRs back to `v3/domestic-public-beta`
-3. keep `main` and the `v2.0.0` baseline unchanged
-4. do not switch CloudBase source branches or deploy without human confirmation
-5. prefer revert or CloudBase version rollback over history rewriting
+Do not commit directly to `main`. See [Development Workflow](DEVELOPMENT_WORKFLOW.md) and the repository [AGENTS.md](../AGENTS.md).
 
-See [Development Workflow](DEVELOPMENT_WORKFLOW.md) and the repository [AGENTS.md](../AGENTS.md).
+## 15. V3 promotion completed
 
-## 15. Planned promotion to main
+V3 promotion was completed on 2026-07-13:
 
-The planned sequence is:
+1. PR #20 promoted the V3 integration line to `main`
+2. merge commit `b02dd1da2ddf768fd659a29b9f54797a6a025668` became the main release commit
+3. the project owner changed CloudBase to build from `main`
+4. the owner deployed and manually verified the main-based version
+5. annotated tag `v3.0.0-beta.1` was created on the merge commit
+6. the matching GitHub Pre-release was published
 
-1. finish V3 consolidation work on the V3 integration branch
-2. merge reviewed task PRs into `v3/domestic-public-beta`
-3. open a final promotion PR from V3 to `main`
-4. merge only after explicit review and approval
-5. switch CloudBase build source to `main`
-6. deploy and verify the main-based CloudBase version
-7. create `v3.0.0-beta.1`
+The former V3 integration branch is no longer a task base or deployment source.
 
-This document update does not perform any of those promotion actions.
+## 16. Repository rename completed
 
-## 16. Planned repository rename
+The GitHub repository was renamed on 2026-07-13:
 
-The repository may be renamed from `examiner-victoria-v2` to `examiner-victoria` only after V3 is promoted to `main` and the CloudBase deployment has been verified from `main`. The rename requires explicit confirmation, followed by remote and documentation link updates. The legacy `v2/` application directory is a separate compatibility decision and is not automatically renamed with the repository.
+- current name: `waterhomie/examiner-victoria`
+- former name: `waterhomie/examiner-victoria-v2`
+- current Git remote and documentation links use the new repository name
+- GitHub may redirect former URLs for historical compatibility
+- local worktree folder names were not changed
+- the `v2/` application directory was not changed
 
 ## 17. Documentation authority
 

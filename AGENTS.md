@@ -2,32 +2,37 @@
 
 ## Repository context
 
-- Repository: `waterhomie/examiner-victoria-v2` (legacy-compatible name)
-- Active Windows V3 worktree: `D:\Software\Codex\Projects\examiner-victoria-v3`
-- Active integration branch: `v3/domestic-public-beta`
-- Frozen V2 release: `main`, tag `v2.0.0`, commit `d592900e29c0cdcc4576d884c178991deea7013c`
+- Repository: `waterhomie/examiner-victoria`
+- Default and development branch: `main`
+- Current release: `v3.0.0-beta.1`
+- Frozen V2 release: tag `v2.0.0`, commit `d592900e29c0cdcc4576d884c178991deea7013c`
+- Canonical Windows worktree: `D:\Software\Codex\Projects\examiner-victoria-v2-canonical`
+- Secondary Windows worktree: `D:\Software\Codex\Projects\examiner-victoria-v3`
 - Authoritative current state: `docs/V3_CURRENT_STATUS.md`
 
-Older canonical or temporary worktree paths in historical documents are context only. Do not use them as the default location for new work.
+The local folder names are historical and were not renamed with the GitHub repository. Do not infer repository or product version from a local folder name.
 
 ## Product and directory status
 
-Examiner Victoria V3 Beta is the current product line. The application still lives under `v2/` for compatibility: imports, Docker paths, scripts, and tests rely on that directory. Do not move or rename `v2/` during ordinary V3 tasks.
+Examiner Victoria V3 Beta is the current `main` product line. The application remains under `v2/` for compatibility because imports, Docker paths, scripts, and tests rely on that directory. Do not move or rename `v2/` during ordinary maintenance.
 
-V2 remains a frozen baseline. Preserve its tag, commit history, QA records, and rollback documentation.
+V2 remains preserved by tag `v2.0.0`, its frozen commit, QA records, and Railway historical reference. `main` no longer represents the V2 branch.
 
-## Branch discipline during the V3 transition
+## Branch discipline
 
-Until a reviewed V3 promotion to `main` is complete:
+For normal work:
 
-1. start task branches from `v3/domestic-public-beta`
-2. open task PRs with `v3/domestic-public-beta` as the base
-3. do not merge task branches directly to `main`
-4. do not delete the V3 integration branch
-5. do not rewrite V2 or V3 history
-6. do not create a V3 tag without explicit approval
+1. update a clean local `main` with `git pull --ff-only`
+2. create a short-lived task branch from `main`
+3. make only the authorized changes
+4. run focused deterministic validation
+5. commit and push the task branch
+6. open a PR with `main` as the base
+7. merge only after review and explicit authorization
+8. verify deployment when relevant
+9. delete the merged task branch after confirming it has no unique commits
 
-After V3 is promoted, deployed from `main`, and verified, normal task branches may use `main` according to the updated workflow.
+Do not commit directly to `main`. The former `v3/domestic-public-beta` integration branch is retired and must not be recreated as the default task base.
 
 ## Safe change boundaries
 
@@ -47,7 +52,8 @@ Never use `git reset --hard`, `git clean`, force push, or history rewriting to w
 The current domestic beta runs on Tencent CloudBase Run:
 
 - service: `examiner-victoria-v3-beta`
-- expected source branch during transition: `v3/domestic-public-beta`
+- source repository: `waterhomie/examiner-victoria`
+- source branch: `main`
 - container port: `8080`
 - health: `/api/health`
 - diagnostics: `/api/diagnostics/runtime`
@@ -59,7 +65,7 @@ Before deployment-related work, inspect:
 - `docs/V3_CLOUDBASE_MIGRATION_PLAN.md`
 - `docs/V3_RUNTIME_DEPENDENCIES.md`
 - `v2/DEPLOYMENT.md`
-- the actual CloudBase source branch reported by the user
+- the actual CloudBase version and source reported by the user
 
 Do not assume Railway is the current domestic deployment. Railway V2 is a frozen historical/rollback reference, and Railway V3 is an overseas test baseline.
 
@@ -69,18 +75,18 @@ Do not change CloudBase or Railway settings, trigger a deployment, or create clo
 
 Stop and request confirmation before:
 
-- promoting V3 to `main` or merging the promotion PR
-- changing the CloudBase build source branch
-- creating a V3 release tag
-- renaming the GitHub repository or changing Git remotes
-- deleting `v3/domestic-public-beta`
-- moving or renaming `v2/`
-- deleting, moving, or substantially rewriting historical audit and test documents
+- changing CloudBase console configuration or source branch
+- renaming the repository again or changing the default branch
+- changing Git remotes outside an explicitly authorized rename task
+- moving or renaming `v2/` or local worktree folders
+- deleting a Release or tag
+- deleting a long-lived or unverified branch
+- modifying Prompt, question bank, provider behavior, scoring, or core Practice/Mock flow
 - adding accounts, databases, payment, a Mini Program, or other scope-expanding features
 
 ## Validation and delivery
 
-Use validation proportional to the change. For documentation work, at minimum:
+For documentation work, at minimum:
 
 - inspect the complete diff and `git diff --stat`
 - run `git diff --check`
@@ -90,4 +96,4 @@ Use validation proportional to the change. For documentation work, at minimum:
 
 For code work, use the relevant compile, smoke, build, and focused regression tests documented by the repository.
 
-Create commits and PRs only when the user authorizes them. Never auto-merge unless the user explicitly asks for that exact action.
+Create commits and PRs only when authorized. Never auto-merge unless the user explicitly requests that exact action.
