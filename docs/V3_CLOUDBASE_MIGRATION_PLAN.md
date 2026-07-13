@@ -19,7 +19,7 @@
 状态更新（2026-07-13）：
 
 - V3 已部署到腾讯云 CloudBase Run，并完成手机端连续两轮端到端验证。
-- 当前 CloudBase Run 服务使用 `v3/domestic-public-beta` 构建；默认 HTTPS 地址为 `https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com`。
+- 当前 CloudBase Run 服务已改为从 `main` 构建；main-based 部署与核心流程已由项目所有者人工验证。默认 HTTPS 地址仍为 `https://examiner-victoria-v3-beta-281197-7-1330057446.sh.run.tcloudbase.com`。
 - 关闭 VPN 后，iPhone Wi-Fi、iPhone 4G 与微信内置浏览器访问均已通过；5G 尚无单独测试记录，不在本文中推断为已验证。
 - 当前 TTS 已从 CloudBase 生产路径中的 gTTS 风险方案切换为腾讯云官方 Python SDK 3.0 `TextToVoice`。
 - 腾讯云 TTS 使用低权限子用户凭证；真实 `SecretId` / `SecretKey` 仅存放在 CloudBase 版本环境变量中。

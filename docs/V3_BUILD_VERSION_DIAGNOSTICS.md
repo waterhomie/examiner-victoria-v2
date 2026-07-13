@@ -17,7 +17,7 @@ For each manual CloudBase deployment, set these non-sensitive labels for the mer
 APP_GIT_SHA=<merged commit SHA>
 APP_BUILD_TIME=<ISO 8601 timestamp, for example 2026-07-13T08:30:00Z>
 APP_DEPLOY_TARGET=cloudbase
-APP_SOURCE_BRANCH=v3/domestic-public-beta
+APP_SOURCE_BRANCH=main
 APP_VERSION=v3-beta
 ```
 

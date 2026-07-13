@@ -9,7 +9,7 @@ The architecture originated in V2 when Examiner Victoria moved from Streamlit to
 - Stateless API contract: the frontend sends the current `ExamSession`, and the backend returns the updated session.
 - One Docker container in which FastAPI serves both the built frontend and `/api`.
 
-The frozen V2 release remains on `main`, tag `v2.0.0`, commit `d592900e29c0cdcc4576d884c178991deea7013c`. Current V3 work is integrated on `v3/domestic-public-beta`. See [V3 Current Status](../docs/V3_CURRENT_STATUS.md).
+The current repository is [`waterhomie/examiner-victoria`](https://github.com/waterhomie/examiner-victoria), and V3 Beta is the current `main` release line at tag `v3.0.0-beta.1`. The frozen V2 baseline is preserved by tag `v2.0.0` and commit `d592900e29c0cdcc4576d884c178991deea7013c`. See [V3 Current Status](../docs/V3_CURRENT_STATUS.md).
 
 ## Why this architecture exists
 
@@ -39,10 +39,11 @@ Related docs:
 
 Current recommendation:
 
-- Treat V3 Beta as the active product line and `v3/domestic-public-beta` as the transition integration branch.
-- Keep V2 frozen on `main` and tag `v2.0.0`.
+- Treat V3 Beta on `main` as the active product and development line.
+- Preserve V2 through tag `v2.0.0`, its frozen commit, QA evidence, and Railway historical reference.
+- Use short-lived task branches from `main` and open reviewed PRs back to `main`.
 - Keep the `v2/` directory name until imports, Docker paths, tests, and scripts are intentionally migrated.
-- Use Tencent CloudBase Run as the current domestic beta entry; keep Railway as historical and rollback context.
+- Use Tencent CloudBase Run from `main` as the current domestic beta entry; keep Railway as historical and rollback context.
 
 Ready now:
 
