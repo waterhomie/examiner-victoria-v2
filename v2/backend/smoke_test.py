@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import base64
+import os
+import threading
+import sys
+import time
+import types
+
 from fastapi.testclient import TestClient
 
 import v2.backend.core.config as config
 import v2.backend.core.rate_limit as rate_limit
+import v2.backend.audio_services as audio_services
 import v2.backend.exam_flow_service as exam_flow_service
 import v2.backend.feedback_service as feedback_service
 import v2.backend.part3_service as part3_service
@@ -113,27 +121,66 @@ def answer_api(
     return response.json()
 
 
+def assert_direct_practice_part1(
+    client: TestClient,
+    session: dict,
+    chosen_topic: str,
+    final_phase: str,
+) -> dict:
+    questions = session["part1_secondary_questions"]
+    opening = session["messages"][0]["content"]
+    assert session["phase"] == "part1", session
+    assert session["part1_topic"] == chosen_topic, session
+    assert 1 <= len(questions) <= 4, session
+    assert len(questions) == len(set(questions)), session
+    assert session["part1_queue"] == questions, session
+    assert session["part1_index"] == 1, session
+    assert session["current_question"] == questions[0], session
+    assert "Part 1 Practice" in opening, opening
+    assert chosen_topic in opening, opening
+    assert questions[0] in opening, opening
+    assert "full name" not in opening.lower(), opening
+    assert exam_flow_service.PART1_FIRST_QUESTION not in opening, opening
+
+    observed_questions = [session["current_question"]]
+    for question_index in range(len(questions)):
+        payload = answer_api(
+            client,
+            session,
+            "This is a deterministic practice answer with a reason and a short example.",
+        )
+        session = payload["session"]
+        if question_index < len(questions) - 1:
+            assert session["phase"] == "part1", session
+            observed_questions.append(session["current_question"])
+        else:
+            assert session["phase"] == final_phase, session
+            if final_phase == "part2_long":
+                assert payload["start_prep_timer"] is True, payload
+
+    assert observed_questions == questions, (observed_questions, questions)
+    assert len(observed_questions) == len(set(observed_questions)), observed_questions
+    return session
+
+
 def assert_focused_practice_flows(client: TestClient, chosen_topic: str, chosen_card: str) -> None:
     part1_session = start_api_session(
         client,
         practice_type="part1",
         part1_topic=chosen_topic,
     )
-    assert part1_session["phase"] == "identity", part1_session
-    assert part1_session["part1_topic"] == chosen_topic, part1_session
-    part1_session = answer_api(client, part1_session, "You can call me Water.")["session"]
-    assert part1_session["phase"] == "part1", part1_session
-    for _ in range(8):
-        part1_payload = answer_api(
-            client,
-            part1_session,
-            "I am a student, and I study architecture because I like designing useful spaces.",
-        )
-        part1_session = part1_payload["session"]
-        if part1_session["phase"] == "complete":
-            break
-    assert part1_session["phase"] == "complete", part1_session
+    part1_session = assert_direct_practice_part1(client, part1_session, chosen_topic, "complete")
     assert part1_session["test_active"] is False, part1_session
+    report = client.post("/api/report", json={"session": part1_session})
+    assert report.status_code == 200, report.text
+
+    full_session = start_api_session(
+        client,
+        practice_type="full",
+        part1_topic=chosen_topic,
+    )
+    full_session = assert_direct_practice_part1(client, full_session, chosen_topic, "part2_long")
+    assert full_session["test_active"] is True, full_session
 
     part2_session = start_api_session(
         client,
@@ -271,19 +318,437 @@ def assert_part3_hybrid_strategy(client: TestClient, chosen_card: str) -> None:
     finally:
         part3_service.call_model = original_part3_call_model
 
+
+def set_tts_config(
+    *,
+    provider: str = "disabled",
+    secret_id: str = "",
+    secret_key: str = "",
+    voice_type: str = "",
+    max_concurrency: int = 3,
+    per_session_concurrency: int = 1,
+    rate_limit_per_minute: int = 60,
+    queue_timeout_seconds: int = 1,
+    max_text_chars: int = 300,
+) -> dict[str, object]:
+    originals = {
+        "provider": config.TTS_PROVIDER,
+        "secret_id": config.TENCENTCLOUD_SECRET_ID,
+        "secret_key": config.TENCENTCLOUD_SECRET_KEY,
+        "voice_type": config.TENCENT_TTS_VOICE_TYPE,
+        "codec": config.TENCENT_TTS_CODEC,
+        "region": config.TENCENT_TTS_REGION,
+        "sample_rate": config.TENCENT_TTS_SAMPLE_RATE,
+        "speed": config.TENCENT_TTS_SPEED,
+        "volume": config.TENCENT_TTS_VOLUME,
+        "tts_max_concurrency": config.TTS_MAX_CONCURRENCY,
+        "tts_max_concurrency_per_session": config.TTS_MAX_CONCURRENCY_PER_SESSION,
+        "tts_rate_limit_per_minute": config.TTS_RATE_LIMIT_PER_MINUTE,
+        "tts_queue_timeout_seconds": config.TTS_QUEUE_TIMEOUT_SECONDS,
+        "tts_max_text_chars": config.TTS_MAX_TEXT_CHARS,
+    }
+    config.TTS_PROVIDER = provider
+    config.TENCENTCLOUD_SECRET_ID = secret_id
+    config.TENCENTCLOUD_SECRET_KEY = secret_key
+    config.TENCENT_TTS_VOICE_TYPE = voice_type
+    config.TENCENT_TTS_CODEC = "mp3"
+    config.TENCENT_TTS_REGION = "ap-shanghai"
+    config.TENCENT_TTS_SAMPLE_RATE = 16000
+    config.TENCENT_TTS_SPEED = 0
+    config.TENCENT_TTS_VOLUME = 0
+    config.TTS_MAX_CONCURRENCY = max_concurrency
+    config.TTS_MAX_CONCURRENCY_PER_SESSION = per_session_concurrency
+    config.TTS_RATE_LIMIT_PER_MINUTE = rate_limit_per_minute
+    config.TTS_QUEUE_TIMEOUT_SECONDS = queue_timeout_seconds
+    config.TTS_MAX_TEXT_CHARS = max_text_chars
+    audio_routes._reset_tts_admission_state_for_tests()
+    audio_services.TTS_CACHE.clear()
+    return originals
+
+
+def restore_tts_config(originals: dict[str, object]) -> None:
+    config.TTS_PROVIDER = originals["provider"]
+    config.TENCENTCLOUD_SECRET_ID = originals["secret_id"]
+    config.TENCENTCLOUD_SECRET_KEY = originals["secret_key"]
+    config.TENCENT_TTS_VOICE_TYPE = originals["voice_type"]
+    config.TENCENT_TTS_CODEC = originals["codec"]
+    config.TENCENT_TTS_REGION = originals["region"]
+    config.TENCENT_TTS_SAMPLE_RATE = originals["sample_rate"]
+    config.TENCENT_TTS_SPEED = originals["speed"]
+    config.TENCENT_TTS_VOLUME = originals["volume"]
+    config.TTS_MAX_CONCURRENCY = originals["tts_max_concurrency"]
+    config.TTS_MAX_CONCURRENCY_PER_SESSION = originals["tts_max_concurrency_per_session"]
+    config.TTS_RATE_LIMIT_PER_MINUTE = originals["tts_rate_limit_per_minute"]
+    config.TTS_QUEUE_TIMEOUT_SECONDS = originals["tts_queue_timeout_seconds"]
+    config.TTS_MAX_TEXT_CHARS = originals["tts_max_text_chars"]
+    audio_routes._reset_tts_admission_state_for_tests()
+    audio_services.TTS_CACHE.clear()
+
+
+def install_fake_tencent_sdk(
+    *,
+    sdk_error_code: str | None = None,
+    error_message: str = "mock Tencent SDK failure",
+    raised_error: Exception | None = None,
+) -> dict[str, object | None]:
+    module_names = [
+        "tencentcloud",
+        "tencentcloud.common",
+        "tencentcloud.common.credential",
+        "tencentcloud.common.exception",
+        "tencentcloud.common.exception.tencent_cloud_sdk_exception",
+        "tencentcloud.tts",
+        "tencentcloud.tts.v20190823",
+        "tencentcloud.tts.v20190823.models",
+        "tencentcloud.tts.v20190823.tts_client",
+    ]
+    originals = {name: sys.modules.get(name) for name in module_names}
+
+    tencentcloud_mod = types.ModuleType("tencentcloud")
+    common_mod = types.ModuleType("tencentcloud.common")
+    credential_mod = types.ModuleType("tencentcloud.common.credential")
+    exception_mod = types.ModuleType("tencentcloud.common.exception")
+    sdk_exception_mod = types.ModuleType("tencentcloud.common.exception.tencent_cloud_sdk_exception")
+    tts_mod = types.ModuleType("tencentcloud.tts")
+    version_mod = types.ModuleType("tencentcloud.tts.v20190823")
+    models_mod = types.ModuleType("tencentcloud.tts.v20190823.models")
+    client_mod = types.ModuleType("tencentcloud.tts.v20190823.tts_client")
+
+    class FakeTencentCloudSDKException(Exception):
+        def __init__(self, code: str, message: str, request_id: str) -> None:
+            super().__init__(message)
+            self.code = code
+            self.message = message
+            self.requestId = request_id
+
+        def get_code(self) -> str:
+            return self.code
+
+        def get_message(self) -> str:
+            return self.message
+
+        def get_request_id(self) -> str:
+            return self.requestId
+
+    class FakeCredential:
+        def __init__(self, secret_id: str, secret_key: str) -> None:
+            assert secret_id == "mock-secret-id"
+            assert secret_key == "mock-secret-key"
+
+    class FakeTextToVoiceRequest:
+        pass
+
+    class FakeTtsClient:
+        def __init__(self, _credential: object, region: str) -> None:
+            assert region == "ap-shanghai"
+
+        def TextToVoice(self, request: object) -> object:
+            assert request.Text
+            assert request.PrimaryLanguage == 2
+            assert request.ModelType == 1
+            assert request.VoiceType == 501009
+            assert request.Codec == "mp3"
+            assert request.SampleRate == 16000
+            assert request.Speed == 0
+            assert request.Volume == 0
+            assert request.SessionId
+            if raised_error is not None:
+                raise raised_error
+            if sdk_error_code is not None:
+                raise FakeTencentCloudSDKException(
+                    sdk_error_code,
+                    error_message,
+                    "mock-error-request-id",
+                )
+            return types.SimpleNamespace(
+                Audio=base64.b64encode(b"mock-mp3-audio").decode("ascii"),
+                RequestId="mock-request-id",
+            )
+
+    credential_mod.Credential = FakeCredential
+    sdk_exception_mod.TencentCloudSDKException = FakeTencentCloudSDKException
+    models_mod.TextToVoiceRequest = FakeTextToVoiceRequest
+    client_mod.TtsClient = FakeTtsClient
+    common_mod.credential = credential_mod
+    common_mod.exception = exception_mod
+    exception_mod.tencent_cloud_sdk_exception = sdk_exception_mod
+    version_mod.models = models_mod
+    version_mod.tts_client = client_mod
+    sys.modules.update({
+        "tencentcloud": tencentcloud_mod,
+        "tencentcloud.common": common_mod,
+        "tencentcloud.common.credential": credential_mod,
+        "tencentcloud.common.exception": exception_mod,
+        "tencentcloud.common.exception.tencent_cloud_sdk_exception": sdk_exception_mod,
+        "tencentcloud.tts": tts_mod,
+        "tencentcloud.tts.v20190823": version_mod,
+        "tencentcloud.tts.v20190823.models": models_mod,
+        "tencentcloud.tts.v20190823.tts_client": client_mod,
+    })
+    return originals
+
+
+def capture_tts_logs(client: TestClient, *, text: str, session_id: str) -> tuple[object, str]:
+    import io
+    import logging
+
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    audio_routes.logger.addHandler(handler)
+    previous_level = audio_routes.logger.level
+    audio_routes.logger.setLevel(logging.INFO)
+    try:
+        response = client.post(
+            "/api/tts",
+            json={"text": text, "session_id": session_id},
+        )
+    finally:
+        audio_routes.logger.removeHandler(handler)
+        audio_routes.logger.setLevel(previous_level)
+    return response, stream.getvalue()
+
+
+def restore_fake_tencent_sdk(originals: dict[str, object | None]) -> None:
+    for name, module in originals.items():
+        if module is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = module
+
+def assert_tts_concurrency_controls(client: TestClient, original_transcribe_audio) -> None:
+    original_synthesize_speech = audio_routes.synthesize_speech
+    tts_originals = set_tts_config(
+        provider="gtts",
+        max_concurrency=3,
+        per_session_concurrency=1,
+        rate_limit_per_minute=60,
+        queue_timeout_seconds=1,
+        max_text_chars=300,
+    )
+    original_tts_timeout = config.TTS_TIMEOUT_SECONDS
+    try:
+        config.TTS_TIMEOUT_SECONDS = 5
+        active = 0
+        max_active = 0
+        active_lock = threading.Lock()
+        all_three_active = threading.Event()
+        release_tts = threading.Event()
+        responses: dict[str, object] = {}
+        errors: dict[str, str] = {}
+
+        def slow_synthesize_speech(text: str) -> audio_services.TTSResult:
+            nonlocal active, max_active
+            with active_lock:
+                active += 1
+                max_active = max(max_active, active)
+                if active == 3:
+                    all_three_active.set()
+            try:
+                release_tts.wait(3)
+                return audio_services.TTSResult(
+                    audio=f"audio:{text}".encode("utf-8"),
+                    content_type="audio/mpeg",
+                    provider="mock",
+                )
+            finally:
+                with active_lock:
+                    active -= 1
+
+        def post_tts(name: str, session_id: str) -> None:
+            try:
+                responses[name] = client.post(
+                    "/api/tts",
+                    json={"text": f"Hello {name}", "session_id": session_id},
+                )
+            except Exception as error:  # pragma: no cover - kept for thread diagnostics
+                errors[name] = str(error)
+
+        audio_routes.synthesize_speech = slow_synthesize_speech
+        threads = [
+            threading.Thread(target=post_tts, args=(name, f"session-{name}"), daemon=True)
+            for name in ("one", "two", "three")
+        ]
+        for thread in threads:
+            thread.start()
+        assert all_three_active.wait(2), "expected three different sessions to run concurrently"
+
+        queued_out = client.post("/api/tts", json={"text": "Hello four", "session_id": "session-four"})
+        assert queued_out.status_code == 503, queued_out.text
+        assert queued_out.json()["detail"] == "Voice is temporarily unavailable. Continue with the text shown above."
+
+        def successful_transcribe_audio(_audio_bytes: bytes, _mime_type: str) -> str:
+            return "STT is still available while TTS is congested."
+
+        audio_routes.transcribe_audio = successful_transcribe_audio
+        post_tts_transcribe = client.post(
+            "/api/transcribe",
+            files={"file": ("answer.wav", b"0" * 4096, "audio/wav")},
+        )
+        assert post_tts_transcribe.status_code == 200, post_tts_transcribe.text
+        assert "still available" in post_tts_transcribe.json()["text"], post_tts_transcribe.text
+        audio_routes.transcribe_audio = original_transcribe_audio
+
+        release_tts.set()
+        for thread in threads:
+            thread.join(2)
+        assert not errors, errors
+        assert max_active == 3, max_active
+        for name in ("one", "two", "three"):
+            response = responses[name]
+            assert response.status_code == 200, response.text
+
+        audio_routes._reset_tts_admission_state_for_tests()
+        first_started = threading.Event()
+        release_same_session = threading.Event()
+        first_response: dict[str, object] = {}
+
+        def one_session_slow_synthesize(_text: str) -> audio_services.TTSResult:
+            first_started.set()
+            release_same_session.wait(3)
+            return audio_services.TTSResult(audio=b"same-session-audio", content_type="audio/mpeg", provider="mock")
+
+        audio_routes.synthesize_speech = one_session_slow_synthesize
+        first_thread = threading.Thread(target=lambda: first_response.setdefault("response", client.post(
+            "/api/tts",
+            json={"text": "Hello same", "session_id": "same-session"},
+        )), daemon=True)
+        first_thread.start()
+        assert first_started.wait(2), "expected first same-session request to start"
+        duplicate = client.post("/api/tts", json={"text": "Hello duplicate", "session_id": "same-session"})
+        assert duplicate.status_code == 429, duplicate.text
+        assert duplicate.json()["detail"] == "Voice is temporarily unavailable. Continue with the text shown above."
+        release_same_session.set()
+        first_thread.join(2)
+        assert first_response["response"].status_code == 200, first_response["response"].text
+
+        audio_routes._reset_tts_admission_state_for_tests()
+        config.TTS_RATE_LIMIT_PER_MINUTE = 2
+
+        def fast_synthesize_speech(_text: str) -> audio_services.TTSResult:
+            return audio_services.TTSResult(audio=b"fast-audio", content_type="audio/mpeg", provider="mock")
+
+        audio_routes.synthesize_speech = fast_synthesize_speech
+        first_limited = client.post("/api/tts", json={"text": "Rate one", "session_id": "rate-session"})
+        second_limited = client.post("/api/tts", json={"text": "Rate two", "session_id": "rate-session"})
+        third_limited = client.post("/api/tts", json={"text": "Rate three", "session_id": "rate-session"})
+        assert first_limited.status_code == 200, first_limited.text
+        assert second_limited.status_code == 200, second_limited.text
+        assert third_limited.status_code == 429, third_limited.text
+    finally:
+        release_tts.set()
+        if "release_same_session" in locals():
+            release_same_session.set()
+        config.TTS_TIMEOUT_SECONDS = original_tts_timeout
+        audio_routes.synthesize_speech = original_synthesize_speech
+        audio_routes.transcribe_audio = original_transcribe_audio
+        restore_tts_config(tts_originals)
+
+
+def assert_part1_topic_selection_is_stable() -> None:
+    topic_choices = [
+        {"name": "Random Alpha", "questions": ["A1?", "A2?", "A3?", "A4?", "A5?"]},
+        {"name": "Random Beta", "questions": ["B1?", "B2?"]},
+        {"name": "Chosen Topic", "questions": ["C1?", "C2?", "C3?", "C4?", "C5?"]},
+    ]
+    original_questions = {topic["name"]: list(topic["questions"]) for topic in topic_choices}
+    selected_names: list[str | None] = []
+    random_index = 0
+    original_choose_topic = exam_flow_service.choose_part1_topic
+    original_sample = exam_flow_service.random.sample
+
+    def deterministic_choose_topic(topic_name: str | None = None) -> dict:
+        nonlocal random_index
+        selected_names.append(topic_name)
+        if topic_name == "Chosen Topic":
+            return topic_choices[2]
+        selected = topic_choices[random_index]
+        random_index += 1
+        return selected
+
+    def deterministic_sample(population: list[str], k: int) -> list[str]:
+        return list(reversed(population))[:k]
+
+    try:
+        exam_flow_service.choose_part1_topic = deterministic_choose_topic
+        exam_flow_service.random.sample = deterministic_sample
+        first_random = exam_flow_service.start_session(practice_mode=True, practice_type="part1")
+        second_random = exam_flow_service.start_session(practice_mode=True, practice_type="part1")
+        specified = exam_flow_service.start_session(
+            practice_mode=True,
+            practice_type="part1",
+            part1_topic="Chosen Topic",
+        )
+    finally:
+        exam_flow_service.choose_part1_topic = original_choose_topic
+        exam_flow_service.random.sample = original_sample
+
+    assert selected_names == [None, None, "Chosen Topic"], selected_names
+    assert first_random.part1_topic == "Random Alpha", first_random
+    assert first_random.part1_secondary_questions == ["A5?", "A4?", "A3?", "A2?"], first_random
+    assert second_random.part1_topic == "Random Beta", second_random
+    assert second_random.part1_secondary_questions == ["B2?", "B1?"], second_random
+    assert specified.part1_topic == "Chosen Topic", specified
+    assert specified.part1_secondary_questions == ["C5?", "C4?", "C3?", "C2?"], specified
+    for topic in topic_choices:
+        assert topic["questions"] == original_questions[topic["name"]], topic
+
+
 def assert_mock_mode_starts_cleanly(client: TestClient) -> None:
-    mock_session = start_api_session(
+    branch_cases = [
+        ("I am a student at university.", exam_flow_service.PART1_STUDY_QUESTIONS),
+        ("I work as an architect.", exam_flow_service.PART1_WORK_QUESTIONS),
+        ("I am taking some time off at the moment.", exam_flow_service.PART1_GENERAL_FOLLOWUPS),
+    ]
+    for status_answer, expected_pool in branch_cases:
+        mock_session = start_api_session(
+            client,
+            practice_mode=False,
+            practice_type="full",
+            answer_expansion_mode=False,
+        )
+        assert mock_session["practice_mode"] is False, mock_session
+        assert mock_session["part3_target_count"] == 4, mock_session
+        assert mock_session["phase"] == "identity", mock_session
+        assert mock_session["current_question"] == exam_flow_service.FIRST_MESSAGE, mock_session
+        assert len(mock_session["part1_secondary_questions"]) == 3, mock_session
+
+        name_payload = answer_api(client, mock_session, "You can call me Water.")
+        mock_session = name_payload["session"]
+        assert mock_session["phase"] == "part1", mock_session
+        assert name_payload["assistant_message"]["content"] == exam_flow_service.PART1_FIRST_QUESTION, name_payload
+        assert "natural version" not in name_payload["assistant_message"]["content"].lower(), name_payload
+
+        branch_payload = answer_api(client, mock_session, status_answer)
+        mock_session = branch_payload["session"]
+        assert mock_session["phase"] == "part1", mock_session
+        assert len(mock_session["part1_queue"]) == 5, mock_session
+        assert all(question in expected_pool for question in mock_session["part1_queue"][:2]), mock_session
+        assert mock_session["part1_index"] == 1, mock_session
+        assert mock_session["current_question"] == mock_session["part1_queue"][0], mock_session
+        if status_answer.startswith("I am a student"):
+            for _ in range(len(mock_session["part1_queue"])):
+                branch_payload = answer_api(client, mock_session, "A concise mock-mode answer.")
+                mock_session = branch_payload["session"]
+            assert mock_session["phase"] == "part2_long", mock_session
+            assert branch_payload["start_prep_timer"] is True, branch_payload
+
+    mock_part1 = start_api_session(
         client,
         practice_mode=False,
-        practice_type="full",
+        practice_type="part1",
         answer_expansion_mode=False,
     )
-    assert mock_session["practice_mode"] is False, mock_session
-    assert mock_session["part3_target_count"] == 4, mock_session
-    mock_payload = answer_api(client, mock_session, "You can call me Water.")
-    mock_session = mock_payload["session"]
-    assert mock_session["phase"] == "part1", mock_session
-    assert "natural version" not in mock_payload["assistant_message"]["content"].lower(), mock_payload
+    assert mock_part1["phase"] == "identity", mock_part1
+    name_payload = answer_api(client, mock_part1, "You can call me Water.")
+    mock_part1 = name_payload["session"]
+    assert name_payload["assistant_message"]["content"] == exam_flow_service.PART1_FIRST_QUESTION, name_payload
+    status_payload = answer_api(client, mock_part1, "I work as an architect.")
+    mock_part1 = status_payload["session"]
+    assert len(mock_part1["part1_queue"]) == 5, mock_part1
+    for _ in range(len(mock_part1["part1_queue"])):
+        mock_part1 = answer_api(client, mock_part1, "A concise mock Part 1 answer.")["session"]
+    assert mock_part1["phase"] == "complete", mock_part1
+    assert mock_part1["test_active"] is False, mock_part1
 
 
 def main() -> None:
@@ -293,10 +758,95 @@ def main() -> None:
     health = client.get("/api/health")
     assert health.status_code == 200, health.text
     health_payload = health.json()
-    assert health_payload["config"]["model"], health_payload
-    assert "api_key_configured" in health_payload["config"], health_payload
-    assert health_payload["limits"]["max_audio_upload_mb"] >= 1, health_payload
-    assert health_payload["cors_origins"], health_payload
+    assert health_payload == {
+        "status": "ok",
+        "app": "examiner-victoria-v2",
+    }, health_payload
+    assert "config" not in health_payload, health_payload
+    assert "limits" not in health_payload, health_payload
+    assert "cors_origins" not in health_payload, health_payload
+    assert "base_url" not in str(health_payload).lower(), health_payload
+    assert "model" not in str(health_payload).lower(), health_payload
+
+
+    runtime_diagnostics = client.get("/api/diagnostics/runtime")
+    assert runtime_diagnostics.status_code == 200, runtime_diagnostics.text
+    diagnostics_payload = runtime_diagnostics.json()
+    original_diagnostics_fields = {
+        "status",
+        "app",
+        "app_version",
+        "environment",
+        "frontend_available",
+        "llm_configured",
+        "stt_configured",
+        "provider_base_configured",
+        "transcription_model_configured",
+        "tts_enabled",
+        "tts_provider",
+        "tts_configured",
+        "tts_region",
+        "tts_voice_type",
+        "tts_codec",
+        "tts_sample_rate",
+        "tts_model_type",
+        "tts_max_concurrency",
+        "tts_rate_limit_per_minute",
+        "server_timestamp",
+    }
+    assert original_diagnostics_fields.issubset(diagnostics_payload), diagnostics_payload
+    assert diagnostics_payload["status"] == "ok", diagnostics_payload
+    assert "server_timestamp" in diagnostics_payload, diagnostics_payload
+    assert isinstance(diagnostics_payload["llm_configured"], bool), diagnostics_payload
+    assert isinstance(diagnostics_payload["stt_configured"], bool), diagnostics_payload
+    assert "api_key" not in str(diagnostics_payload).lower(), diagnostics_payload
+    assert "sk-" not in str(diagnostics_payload), diagnostics_payload
+    assert "base_url" not in diagnostics_payload, diagnostics_payload
+    assert diagnostics_payload["tts_provider"] in {"disabled", "gtts", "tencent"}, diagnostics_payload
+    assert isinstance(diagnostics_payload["tts_configured"], bool), diagnostics_payload
+    assert diagnostics_payload["tts_region"] == "ap-shanghai", diagnostics_payload
+    assert diagnostics_payload["tts_voice_type"] in {"unknown", str(config.TENCENT_TTS_VOICE_TYPE).strip()}, diagnostics_payload
+    assert diagnostics_payload["tts_codec"] == "mp3", diagnostics_payload
+    assert diagnostics_payload["tts_sample_rate"] == config.TENCENT_TTS_SAMPLE_RATE, diagnostics_payload
+    assert diagnostics_payload["tts_model_type"] == 1, diagnostics_payload
+    assert diagnostics_payload["tts_max_concurrency"] == config.TTS_MAX_CONCURRENCY, diagnostics_payload
+    assert diagnostics_payload["tts_rate_limit_per_minute"] == config.TTS_RATE_LIMIT_PER_MINUTE, diagnostics_payload
+    assert "secret" not in str(diagnostics_payload).lower(), diagnostics_payload
+    build_environment_names = {
+        "APP_GIT_SHA": "0123456789abcdef0123456789abcdef01234567",
+        "APP_BUILD_TIME": "2026-07-13T08:30:00Z",
+        "APP_DEPLOY_TARGET": "cloudbase",
+        "APP_SOURCE_BRANCH": "v3/domestic-public-beta",
+        "APP_VERSION": "v3-beta",
+    }
+    original_build_environment = {name: os.environ.get(name) for name in build_environment_names}
+    try:
+        os.environ.update(build_environment_names)
+        configured_payload = client.get("/api/diagnostics/runtime").json()
+        assert configured_payload["git_sha"] == build_environment_names["APP_GIT_SHA"], configured_payload
+        assert configured_payload["git_sha_short"] == "0123456", configured_payload
+        assert configured_payload["build_time"] == build_environment_names["APP_BUILD_TIME"], configured_payload
+        assert configured_payload["deploy_target"] == "cloudbase", configured_payload
+        assert configured_payload["source_branch"] == "v3/domestic-public-beta", configured_payload
+        assert configured_payload["app_version"] == "v3-beta", configured_payload
+        assert original_diagnostics_fields.issubset(configured_payload), configured_payload
+
+        for name in build_environment_names:
+            os.environ.pop(name, None)
+        missing_payload = client.get("/api/diagnostics/runtime").json()
+        for field in ("git_sha", "git_sha_short", "build_time", "deploy_target", "source_branch", "app_version"):
+            assert missing_payload[field] == "unknown", missing_payload
+        assert original_diagnostics_fields.issubset(missing_payload), missing_payload
+
+        serialized_payload = str(configured_payload).lower()
+        for forbidden_name in ("api_key", "token", "cookie", "secret", "environment_variables"):
+            assert forbidden_name not in serialized_payload, configured_payload
+    finally:
+        for name, value in original_build_environment.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
     question_bank = client.get("/api/question-bank")
     assert question_bank.status_code == 200, question_bank.text
@@ -373,22 +923,226 @@ def main() -> None:
     finally:
         audio_routes.transcribe_audio = original_transcribe_audio
 
-    too_long_tts = client.post("/api/tts", json={"text": "a" * (config.MAX_TTS_CHARS + 1)})
+    too_long_tts = client.post("/api/tts", json={"text": "a" * (config.TTS_MAX_TEXT_CHARS + 1)})
     assert too_long_tts.status_code == 413, too_long_tts.text
 
     original_synthesize_speech = audio_routes.synthesize_speech
+    tts_originals = set_tts_config(provider="disabled")
     try:
-        def broken_synthesize_speech(_text: str) -> bytes:
-            raise RuntimeError("provider voice error: internal detail")
+        assert audio_services.normalize_tts_provider_name() == "disabled"
+        assert audio_services.tts_provider_is_configured() is False
+        disabled_tts = client.post("/api/tts", json={"text": "Hello"})
+        assert disabled_tts.status_code == 502, disabled_tts.text
+        assert disabled_tts.json()["detail"] == "Voice is temporarily unavailable. Continue with the text shown above."
 
-        audio_routes.synthesize_speech = broken_synthesize_speech
-        failed_tts = client.post("/api/tts", json={"text": "Hello"})
-        assert failed_tts.status_code == 502, failed_tts.text
-        failed_tts_detail = failed_tts.json()["detail"]
-        assert "internal detail" not in failed_tts_detail, failed_tts_detail
-        assert "temporarily unavailable" in failed_tts_detail, failed_tts_detail
+        config.TTS_PROVIDER = "gtts"
+        assert audio_services.normalize_tts_provider_name() == "gtts"
+        assert audio_services.get_tts_provider().name == "gtts"
+
+        def successful_synthesize_speech(_text: str) -> audio_services.TTSResult:
+            return audio_services.TTSResult(
+                audio=b"fake-mp3-audio",
+                content_type="audio/mpeg",
+                provider="mock",
+                request_id="mock-request",
+            )
+
+        audio_routes.synthesize_speech = successful_synthesize_speech
+        successful_tts = client.post("/api/tts", json={"text": "Hello"})
+        assert successful_tts.status_code == 200, successful_tts.text
+        assert successful_tts.headers["content-type"].startswith("audio/mpeg"), successful_tts.headers
+        assert successful_tts.headers.get("x-tts-duration-ms") is not None, successful_tts.headers
+        assert successful_tts.content == b"fake-mp3-audio", successful_tts.content
+
+        config.TTS_PROVIDER = "tencent"
+        audio_routes.synthesize_speech = audio_services.synthesize_speech
+        config.TENCENTCLOUD_SECRET_ID = ""
+        config.TENCENTCLOUD_SECRET_KEY = "mock-secret-key"
+        config.TENCENT_TTS_VOICE_TYPE = "101001"
+        assert audio_services.tts_provider_is_configured() is False
+        missing_secret_tts = client.post("/api/tts", json={"text": "Hello"})
+        assert missing_secret_tts.status_code == 502, missing_secret_tts.text
+
+        audio_routes.synthesize_speech = audio_services.synthesize_speech
+        config.TENCENTCLOUD_SECRET_ID = "mock-secret-id"
+        config.TENCENT_TTS_VOICE_TYPE = ""
+        assert audio_services.tts_provider_is_configured() is False
+        missing_voice_tts = client.post("/api/tts", json={"text": "Hello"})
+        assert missing_voice_tts.status_code == 502, missing_voice_tts.text
+        config.TENCENTCLOUD_SECRET_ID = "mock-secret-id"
+        config.TENCENTCLOUD_SECRET_KEY = "mock-secret-key"
+        config.TENCENT_TTS_REGION = "ap-shanghai"
+        config.TENCENT_TTS_VOICE_TYPE = "501009"
+        config.TENCENT_TTS_CODEC = "mp3"
+        invalid_tencent_values = (
+            ("TENCENTCLOUD_SECRET_ID", "mock-secret-id\nunsafe"),
+            ("TENCENTCLOUD_SECRET_KEY", "mock-secret-key\nunsafe"),
+            ("TENCENT_TTS_REGION", "ap-shanghai/unsafe"),
+            ("TENCENT_TTS_VOICE_TYPE", "501009x"),
+            ("TENCENT_TTS_CODEC", "mp3;unsafe"),
+        )
+        for config_name, invalid_value in invalid_tencent_values:
+            original_value = getattr(config, config_name)
+            setattr(config, config_name, invalid_value)
+            assert audio_services.tts_provider_is_configured() is False, config_name
+            setattr(config, config_name, original_value)
+
+
+        config.TENCENTCLOUD_SECRET_ID = "  mock-secret-id  "
+        config.TENCENTCLOUD_SECRET_KEY = "  mock-secret-key  "
+        config.TENCENT_TTS_REGION = "  ap-shanghai  "
+        config.TENCENT_TTS_VOICE_TYPE = "  501009  "
+        config.TENCENT_TTS_CODEC = "  MP3  "
+        fake_sdk = install_fake_tencent_sdk()
+        try:
+            tencent_tts = client.post("/api/tts", json={"text": "Hello Victoria"})
+            assert tencent_tts.status_code == 200, tencent_tts.text
+            assert tencent_tts.headers["content-type"].startswith("audio/mpeg"), tencent_tts.headers
+            assert tencent_tts.content == b"mock-mp3-audio", tencent_tts.content
+        finally:
+            restore_fake_tencent_sdk(fake_sdk)
+
+        diagnostic_tts_fields = client.get("/api/diagnostics/runtime").json()
+        assert {
+            "tts_region": "ap-shanghai",
+            "tts_voice_type": "501009",
+            "tts_codec": "mp3",
+            "tts_sample_rate": 16000,
+            "tts_model_type": 1,
+        }.items() <= diagnostic_tts_fields.items(), diagnostic_tts_fields
+        assert "mock-secret-id" not in str(diagnostic_tts_fields), diagnostic_tts_fields
+        assert "mock-secret-key" not in str(diagnostic_tts_fields), diagnostic_tts_fields
+
+        sdk_error_codes = [
+            "ClientNetworkError",
+            "AuthFailure",
+            "UnauthorizedOperation",
+            "InvalidParameterValue.VoiceType",
+            "NoFreeAccount",
+            "PkgExhausted",
+        ]
+        for index, error_code in enumerate(sdk_error_codes):
+            audio_services.TTS_CACHE.clear()
+            sensitive_text = f"Sensitive user text {index}"
+            fake_sdk = install_fake_tencent_sdk(
+                sdk_error_code=error_code,
+                error_message=(
+                    f"Safe Tencent message for {sensitive_text}, "
+                    "SecretId=mock-secret-id, SecretKey=mock-secret-key, "
+                    "Authorization=Bearer mock-authorization, "
+                    "Audio=QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=, "
+                    + ("Z" * 400)
+                ),
+            )
+            try:
+                failed_tencent_tts, tts_logs = capture_tts_logs(
+                    client,
+                    text=sensitive_text,
+                    session_id=f"sdk-error-{index}",
+                )
+                assert failed_tencent_tts.status_code == 502, failed_tencent_tts.text
+                assert failed_tencent_tts.json()["detail"] == (
+                    "Voice is temporarily unavailable. Continue with the text shown above."
+                ), failed_tencent_tts.text
+                assert f"error_code={error_code}" in tts_logs, tts_logs
+                logged_message = tts_logs.split("error_message=", 1)[1].split(" request_id=", 1)[0]
+                assert len(logged_message) <= audio_services.TTS_ERROR_MESSAGE_LIMIT, logged_message
+                assert "Z" * 241 not in logged_message, logged_message
+                assert "request_id=mock-error-request-id" in tts_logs, tts_logs
+                assert "provider=tencent" in tts_logs, tts_logs
+                assert "voice_type=501009" in tts_logs, tts_logs
+                assert "region=ap-shanghai" in tts_logs, tts_logs
+                assert "codec=mp3" in tts_logs, tts_logs
+                assert "sample_rate=16000" in tts_logs, tts_logs
+                for forbidden_value in (
+                    "mock-secret-id",
+                    "SecretId",
+                    "SecretKey",
+                    "Authorization",
+                    "mock-secret-key",
+                    "mock-authorization",
+                    sensitive_text,
+                    "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=",
+                ):
+                    assert forbidden_value not in tts_logs, tts_logs
+            finally:
+                restore_fake_tencent_sdk(fake_sdk)
+
+        for index, raised_error in enumerate(
+            (
+                ConnectionError("SecretKey=mock-secret-key network failure"),
+                RuntimeError("SecretId=mock-secret-id unknown failure"),
+            )
+        ):
+            audio_services.TTS_CACHE.clear()
+            fake_sdk = install_fake_tencent_sdk(raised_error=raised_error)
+            try:
+                failed_tencent_tts, tts_logs = capture_tts_logs(
+                    client,
+                    text=f"Non-SDK failure text {index}",
+                    session_id=f"non-sdk-error-{index}",
+                )
+                assert failed_tencent_tts.status_code == 502, failed_tencent_tts.text
+                expected_code = "TTS_NETWORK_ERROR" if isinstance(raised_error, ConnectionError) else "TTS_UNKNOWN_ERROR"
+                assert f"error_code={expected_code}" in tts_logs, tts_logs
+                assert "mock-secret-id" not in tts_logs, tts_logs
+                assert "mock-secret-key" not in tts_logs, tts_logs
+                assert failed_tencent_tts.json()["detail"] == (
+                    "Voice is temporarily unavailable. Continue with the text shown above."
+                ), failed_tencent_tts.text
+            finally:
+                restore_fake_tencent_sdk(fake_sdk)
+
+        text_flow_session = start_api_session(
+            client,
+            practice_type="part3",
+            cue_card_title=chosen_card,
+            voice_playback_enabled=True,
+        )
+        text_flow_payload = answer_api(
+            client,
+            text_flow_session,
+            "I think this matters because it affects people's everyday choices.",
+        )
+        assert text_flow_payload["assistant_message"]["content"], text_flow_payload
+        assert text_flow_payload["session"]["candidate_answers"], text_flow_payload
+        assert text_flow_payload["session"]["current_question"], text_flow_payload
+
+
+        def slow_synthesize_speech(_text: str) -> audio_services.TTSResult:
+            import time
+
+            time.sleep(1.2)
+            return audio_services.TTSResult(audio=b"late-audio", content_type="audio/mpeg", provider="mock")
+
+        original_tts_timeout = config.TTS_TIMEOUT_SECONDS
+        config.TTS_TIMEOUT_SECONDS = 1
+        audio_routes.synthesize_speech = slow_synthesize_speech
+        timed_out_tts = client.post("/api/tts", json={"text": "Hello"})
+        assert timed_out_tts.status_code == 504, timed_out_tts.text
+        timed_out_detail = timed_out_tts.json()["detail"]
+        assert timed_out_detail == "Voice is temporarily unavailable. Continue with the text shown above.", timed_out_detail
+
+        audio_routes.synthesize_speech = audio_services.synthesize_speech
+        config.TTS_PROVIDER = "disabled"
+        def successful_transcribe_audio(_audio_bytes: bytes, _mime_type: str) -> str:
+            return "I can still speak after a TTS failure."
+
+        audio_routes.transcribe_audio = successful_transcribe_audio
+        post_tts_transcribe = client.post(
+            "/api/transcribe",
+            files={"file": ("answer.wav", b"0" * 4096, "audio/wav")},
+        )
+        assert post_tts_transcribe.status_code == 200, post_tts_transcribe.text
+        assert "still speak" in post_tts_transcribe.json()["text"], post_tts_transcribe.text
+        audio_routes.transcribe_audio = original_transcribe_audio
     finally:
+        config.TTS_TIMEOUT_SECONDS = locals().get("original_tts_timeout", config.TTS_TIMEOUT_SECONDS)
         audio_routes.synthesize_speech = original_synthesize_speech
+        audio_routes.transcribe_audio = original_transcribe_audio
+        restore_tts_config(tts_originals)
+
+    assert_tts_concurrency_controls(client, original_transcribe_audio)
 
     start = client.post(
         "/api/sessions",
@@ -401,7 +1155,7 @@ def main() -> None:
     )
     assert start.status_code == 200, start.text
     session = start.json()["session"]
-    assert session["phase"] == "identity"
+    assert session["phase"] == "part1"
 
     part2_start = client.post(
         "/api/sessions",
@@ -447,6 +1201,7 @@ def main() -> None:
     assert topic_start.status_code == 200, topic_start.text
     assert topic_start.json()["session"]["part1_topic"] == chosen_topic, topic_start.text
 
+    assert_part1_topic_selection_is_stable()
     assert_focused_practice_flows(client, chosen_topic, chosen_card)
     assert_mock_mode_starts_cleanly(client)
     assert_part3_hybrid_strategy(client, chosen_card)
@@ -477,7 +1232,10 @@ def main() -> None:
         },
     )
     assert answer1.status_code == 200, answer1.text
-    session = answer1.json()["session"]
+    answer1_payload = answer1.json()
+    assert isinstance(answer1_payload["llm_duration_ms"], int), answer1_payload
+    assert isinstance(answer1_payload["total_duration_ms"], int), answer1_payload
+    session = answer1_payload["session"]
     assert session["phase"] == "part1"
 
     answer2 = client.post(

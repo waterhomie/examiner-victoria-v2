@@ -1,18 +1,27 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { healthCheck, sendTelemetryEvent } from "./src/api.js";
+import { fetchRuntimeDiagnostics, healthCheck, sendTelemetryEvent, synthesizeSpeech, TTS_TIMEOUT_MS } from "./src/api.js";
 import { browserSpeechTranscriptionIsSupported } from "./src/browserSpeechTranscriber.js";
 import { appReducer } from "./src/state/appReducer.js";
 import {
   answerRequested,
   answerSucceeded,
+  errorSet,
   practiceOptionsLoaded,
   sessionStartRequested,
   sessionStartSucceeded,
 } from "./src/state/actions.js";
 import { createInitialAppState } from "./src/state/initialState.js";
 import { selectCapabilities, selectMessages, selectSessionView } from "./src/state/selectors.js";
+import {
+  analyzeUserAgent,
+  buildDiagnosticCopyText,
+  checkLocalStorage,
+  getPageEnvironment,
+  getRecordingSupport,
+} from "./src/utils/runtimeDiagnostics.js";
+import { VOICE_UNAVAILABLE_MESSAGE, friendlyError } from "./src/utils/errors.js";
 
 function setNavigator(value) {
   Object.defineProperty(globalThis, "navigator", {
@@ -63,6 +72,23 @@ function assertReducerFlow() {
   state = appReducer(state, sessionStartSucceeded(createSession({ voice_playback_enabled: false })));
   assert.equal(state.busy, "");
   assert.equal(state.audioEnabled, false);
+  assert.equal(state.selectedPart1Topic, "work or studies");
+
+  let randomTopicState = createInitialAppState();
+  randomTopicState = appReducer(
+    randomTopicState,
+    sessionStartRequested({
+      practiceType: "part1",
+      selectedCueCardTitle: "",
+      selectedPart1Topic: "",
+      trainingMode: "practice",
+    }),
+  );
+  randomTopicState = appReducer(
+    randomTopicState,
+    sessionStartSucceeded(createSession({ part1_topic: "music" })),
+  );
+  assert.equal(randomTopicState.selectedPart1Topic, "");
 
   state = appReducer(state, answerRequested());
   assert.equal(state.busy, "thinking");
@@ -184,6 +210,136 @@ async function assertApiErrorMapping() {
   await assert.rejects(healthCheck(), /not reachable/);
 }
 
+async function assertTtsFailureMapping() {
+  installWindow();
+  setNavigator({ maxTouchPoints: 0, onLine: true, platform: "Win32", userAgent: "Node" });
+  assert.equal(TTS_TIMEOUT_MS, 12000);
+
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(url), /\/api\/tts$/);
+    assert.equal(options?.method, "POST");
+    const payload = JSON.parse(String(options?.body || "{}"));
+    assert.equal(payload.text, "Hello");
+    assert.equal(payload.session_id, "session-1");
+    const error = new Error("aborted");
+    error.name = "AbortError";
+    throw error;
+  };
+  await assert.rejects(synthesizeSpeech("Hello", "session-1"), new RegExp(VOICE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.equal(
+    friendlyError(new Error(VOICE_UNAVAILABLE_MESSAGE), "fallback"),
+    VOICE_UNAVAILABLE_MESSAGE,
+  );
+
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 504,
+    statusText: "Gateway Timeout",
+    json: async () => ({ detail: VOICE_UNAVAILABLE_MESSAGE }),
+  });
+  await assert.rejects(synthesizeSpeech("Hello", "session-1"), new RegExp(VOICE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.equal(
+    friendlyError(new Error("Request timed out. Victoria's server may be waking up; please try again."), "fallback"),
+    "Victoria's server is taking too long to respond. It may be waking up, so please try again in a moment.",
+  );
+}
+
+function assertTtsFailurePreservesAnswerState() {
+  const previousSession = createSession({
+    phase: "part1",
+    current_question: "Do you work, or are you a student?",
+    candidate_answers: [{ phase: "identity", answer: "My name is Water." }],
+  });
+  const nextSession = createSession({
+    phase: "part1",
+    current_question: "What do you like about your studies?",
+    candidate_answers: [
+      { phase: "identity", answer: "My name is Water." },
+      { phase: "part1", answer: "I study architecture." },
+    ],
+    messages: [
+      { role: "user", phase: "part1", content: "I study architecture." },
+      { role: "assistant", phase: "part1", content: "What do you like about your studies?" },
+    ],
+  });
+  let state = { ...createInitialAppState(), session: previousSession, busy: "thinking" };
+  state = appReducer(state, answerSucceeded(nextSession));
+  state = appReducer(state, errorSet(VOICE_UNAVAILABLE_MESSAGE));
+  assert.equal(state.error, VOICE_UNAVAILABLE_MESSAGE);
+  assert.equal(state.busy, "");
+  assert.equal(state.session.current_question, "What do you like about your studies?");
+  assert.equal(state.session.candidate_answers.length, 2);
+  assert.equal(state.session.messages.at(-1).content, "What do you like about your studies?");
+}
+
+
+function assertRuntimeDiagnosticsUtilities() {
+  const wechat = analyzeUserAgent(
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) MicroMessenger/8.0",
+    "iPhone",
+    5,
+  );
+  assert.equal(wechat.isWeChat, true);
+  assert.equal(wechat.isIOS, true);
+  assert.equal(wechat.deviceType, "mobile");
+
+  const android = analyzeUserAgent("Mozilla/5.0 (Linux; Android 14) Chrome/120", "Linux armv8", 5);
+  assert.equal(android.isAndroid, true);
+
+  const page = getPageEnvironment({
+    location: { protocol: "http:", hostname: "example.test" },
+    navigator: { userAgent: "Desktop", platform: "Win32", maxTouchPoints: 0 },
+    secureContext: false,
+  });
+  assert.equal(page.https, false);
+  assert.equal(page.secureContext, false);
+
+  const noRecording = getRecordingSupport({ navigator: {}, window: {} });
+  assert.equal(noRecording.mediaDevices, false);
+  assert.equal(noRecording.getUserMedia, false);
+  assert.equal(noRecording.mediaRecorder, false);
+
+  const withRecording = getRecordingSupport({
+    navigator: { mediaDevices: { getUserMedia() {} } },
+    window: { MediaRecorder: { isTypeSupported: (type) => type === "audio/webm" } },
+  });
+  assert.equal(withRecording.mediaDevices, true);
+  assert.equal(withRecording.getUserMedia, true);
+  assert.equal(withRecording.mediaRecorder, true);
+  assert.equal(withRecording.mimeSupport["audio/webm"], true);
+
+  const unavailableStorage = checkLocalStorage({
+    setItem() {
+      throw new Error("blocked");
+    },
+    removeItem() {},
+  });
+  assert.equal(unavailableStorage.available, false);
+
+  const copyText = buildDiagnosticCopyText({
+    time: "2026-07-12T00:00:00.000Z",
+    environment: { userAgent: "UA", deviceType: "desktop", isWeChat: false, isIOS: false, isAndroid: false, https: true, secureContext: true },
+    recording: { mediaDevices: false, getUserMedia: false, mediaRecorder: false, mimeSupport: {} },
+    api: { status: "failed", elapsedMs: 12, token: "redacted-token", api_key: "redacted-api-key" },
+    playback: { status: "not tested" },
+    storage: { available: true },
+  });
+  assert.doesNotMatch(copyText, /redacted-token|redacted-api-key|api_key|cookie/i);
+}
+
+async function assertRuntimeDiagnosticsApiMapping() {
+  installWindow();
+  setNavigator({ maxTouchPoints: 0, onLine: true, platform: "Win32", userAgent: "Node" });
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/api\/diagnostics\/runtime$/);
+    return {
+      ok: true,
+      json: async () => ({ status: "ok", llm_configured: false, stt_configured: false }),
+    };
+  };
+  const payload = await fetchRuntimeDiagnostics();
+  assert.equal(payload.status, "ok");
+}
 function assertTelemetryFailureIsNonBlocking() {
   installWindow();
   setNavigator({
@@ -208,6 +364,23 @@ function assertChatBottomAnchorContracts() {
   assert.match(chatPanel, /className="chat-scroll-slack"/);
   assert.match(chatPanel, /data-testid="mock-exam-card"/);
   assert.match(chatPanel, /data-testid="replay-question-button"/);
+  const app = readFileSync("./src/App.jsx", "utf8");
+  const header = readFileSync("./src/components/layout/ExamHeader.jsx", "utf8");
+  const diagnosticsPanel = readFileSync("./src/components/layout/RuntimeDiagnosticsPanel.jsx", "utf8");
+  assert.match(app, /RuntimeDiagnosticsPanel/);
+  assert.doesNotMatch(header, /data-testid="runtime-diagnostics-button"/);
+  assert.equal(
+    (header.match(/data-testid="mobile-runtime-diagnostics-button"/g) || []).length,
+    1,
+  );
+  assert.match(header, /onClick=\{openRuntimeDiagnostics\} data-testid="mobile-runtime-diagnostics-button"/);
+  assert.match(header, /<summary>More<\/summary>/);
+  assert.match(header, /data-testid="mobile-sound-toggle"/);
+  assert.match(header, /data-testid="mobile-score-button"/);
+  assert.match(header, /data-testid="mobile-export-button"/);
+  assert.match(header, /data-testid="mobile-restart-button"/);
+  assert.match(diagnosticsPanel, /data-testid="copy-diagnostics-button"/);
+  assert.match(diagnosticsPanel, /请使用 Safari 或 Chrome 打开/);
   assert.match(chatPanel, /data-testid="mock-question-fallback"/);
   assert.match(chatPanel, /data-testid="chat-scroll-slack"/);
   assert.doesNotMatch(mobileCss, /\.chat-panel\s*>\s*\.message-row:first-child\s*\{[^}]*margin-top:\s*auto/s);
@@ -226,12 +399,16 @@ function assertChatBottomAnchorContracts() {
 }
 
 await assertApiErrorMapping();
+await assertTtsFailureMapping();
 assertBrowserSpeechIOSGuard();
 assertCapabilities();
 assertMockModeSelectors();
 assertChatBottomAnchorContracts();
 assertReducerFlow();
+assertTtsFailurePreservesAnswerState();
 assertStageCardSelector();
 assertTelemetryFailureIsNonBlocking();
+assertRuntimeDiagnosticsUtilities();
+await assertRuntimeDiagnosticsApiMapping();
 
 console.log("V2 frontend smoke test passed");

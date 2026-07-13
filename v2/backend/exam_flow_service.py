@@ -24,6 +24,7 @@ from .schemas import ChatMessage, ExamSession
 
 
 PART1_FIRST_QUESTION = "Do you work, or are you a student?"
+PRACTICE_PART1_QUESTION_COUNT = 4
 FIRST_MESSAGE = (
     "**Part 1 - Introduction and Interview**\n\n"
     "Good afternoon. My name is Victoria, and I will be your examiner today. "
@@ -89,6 +90,12 @@ def start_session(
 ) -> ExamSession:
     selected_topic = choose_part1_topic(part1_topic)
     cue_card = choose_cue_card(cue_card_title)
+    direct_part1_practice = practice_mode and practice_type in {"full", "part1"}
+    secondary_question_count = PRACTICE_PART1_QUESTION_COUNT if direct_part1_practice else 3
+    secondary_questions = random.sample(
+        selected_topic["questions"],
+        k=min(secondary_question_count, len(selected_topic["questions"])),
+    )
     session = ExamSession(
         session_id=str(uuid.uuid4()),
         messages=[ChatMessage(role="assistant", content=FIRST_MESSAGE, phase="identity")],
@@ -98,14 +105,28 @@ def start_session(
         answer_expansion_mode=answer_expansion_mode,
         voice_playback_enabled=voice_playback_enabled,
         part1_topic=selected_topic["name"],
-        part1_secondary_questions=random.sample(
-            selected_topic["questions"],
-            k=min(3, len(selected_topic["questions"])),
-        ),
+        part1_secondary_questions=secondary_questions,
         part3_target_count=PRACTICE_PART3_QUESTION_COUNT if practice_mode else MOCK_PART3_QUESTION_COUNT,
         cue_card=cue_card,
     )
-    if practice_type == "part2":
+    if direct_part1_practice:
+        first_question = secondary_questions[0]
+        session.phase = "part1"
+        session.part1_queue = list(secondary_questions)
+        session.part1_index = 1
+        session.current_question = first_question
+        session.messages = [
+            ChatMessage(
+                role="assistant",
+                content=(
+                    "**Part 1 Practice**\n\n"
+                    f"Let's talk about {selected_topic['name']}.\n\n"
+                    f"{first_question}"
+                ),
+                phase="part1",
+            )
+        ]
+    elif practice_type == "part2":
         session.phase = "part2_long"
         session.messages = [
             ChatMessage(
@@ -147,7 +168,10 @@ def handle_identity_phase(session: ExamSession) -> tuple[str, bool]:
 
 def handle_part1_phase(session: ExamSession, answer: str) -> tuple[str, bool]:
     if not session.part1_queue:
-        session.part1_queue = choose_part1_followups(session, answer)
+        if session.practice_mode:
+            session.part1_queue = list(session.part1_secondary_questions)
+        else:
+            session.part1_queue = choose_part1_followups(session, answer)
     index = session.part1_index
     if index < len(session.part1_queue):
         next_content = session.part1_queue[index]

@@ -13,6 +13,7 @@ export function ExamHeader({
   isPracticeMode,
   practiceType,
   practiceTypes,
+  openRuntimeDiagnostics,
   recording,
   requestReport,
   session,
@@ -99,6 +100,9 @@ export function ExamHeader({
         <details className="mobile-more-menu">
           <summary>More</summary>
           <div className="mobile-more-panel">
+            <button type="button" onClick={openRuntimeDiagnostics} data-testid="mobile-runtime-diagnostics-button">
+              System check
+            </button>
             <button type="button" onClick={toggleAudioEnabled} data-testid="mobile-sound-toggle">
               {audioEnabled ? "Sound on" : "Sound off"}
             </button>

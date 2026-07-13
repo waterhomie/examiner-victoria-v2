@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { sendTelemetryEvent, synthesizeSpeech } from "../api.js";
 import { isLikelyIOSDevice } from "../utils/browser.js";
-import { friendlyError } from "../utils/errors.js";
+import { VOICE_UNAVAILABLE_MESSAGE } from "../utils/errors.js";
 import { speechCacheKey } from "../utils/format.js";
 
 const MAX_SPEECH_CACHE_ITEMS = 24;
@@ -90,7 +90,7 @@ export function useSpeechPlayback({ audioEnabled, onErrorChange }) {
     audioUnlockedRef.current = true;
   }, [getAudioElement]);
 
-  const getSpeechBlob = useCallback(async (text) => {
+  const getSpeechBlob = useCallback(async (text, sessionId = "") => {
     const key = speechCacheKey(text);
     const cache = speechBlobCacheRef.current;
     if (key && cache.has(key)) {
@@ -104,11 +104,12 @@ export function useSpeechPlayback({ audioEnabled, onErrorChange }) {
     const startedAt = Date.now();
     let blob;
     try {
-      blob = await synthesizeSpeech(text);
+      blob = await synthesizeSpeech(text, sessionId);
       sendTelemetryEvent("tts", {
         source: "server",
         chars: text.length,
         durationMs: Date.now() - startedAt,
+        tts_duration_ms: Date.now() - startedAt,
         bytes: blob.size || 0,
       });
     } catch (err) {
@@ -116,6 +117,7 @@ export function useSpeechPlayback({ audioEnabled, onErrorChange }) {
         source: "server",
         chars: text.length,
         durationMs: Date.now() - startedAt,
+        tts_duration_ms: Date.now() - startedAt,
         message: String(err?.message || err),
       });
       throw err;
@@ -131,23 +133,18 @@ export function useSpeechPlayback({ audioEnabled, onErrorChange }) {
   }, []);
 
   const playSpeech = useCallback(
-    async (text) => {
+    async (text, sessionId = "") => {
       if (!audioEnabled || !text) return;
       stopCurrentAudio();
       clearPendingSpeech();
       let url = "";
       try {
-        const blob = await getSpeechBlob(text);
+        const blob = await getSpeechBlob(text, sessionId);
         url = URL.createObjectURL(blob);
         await playAudioUrl(url);
       } catch (err) {
         if (!url) {
-          onErrorChange(
-            friendlyError(
-              err,
-              "Voice playback is temporarily unavailable. You can continue with the visible text.",
-            ),
-          );
+          onErrorChange(VOICE_UNAVAILABLE_MESSAGE);
           return;
         }
 

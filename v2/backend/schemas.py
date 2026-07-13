@@ -101,6 +101,8 @@ class AnswerResponse(BaseModel):
     assistant_message: ChatMessage
     spoken_text: str
     start_prep_timer: bool = False
+    llm_duration_ms: int | None = None
+    total_duration_ms: int | None = None
 
 
 class ReportRequest(BaseModel):
@@ -114,10 +116,40 @@ class ReportResponse(BaseModel):
 class TranscriptionResponse(BaseModel):
     text: str
     elapsed_ms: int | None = None
+    stt_duration_ms: int | None = None
 
 
 class TTSRequest(BaseModel):
     text: str
+    session_id: str | None = None
+
+
+class RuntimeDiagnosticsResponse(BaseModel):
+    status: str
+    app: str
+    app_version: str
+    git_sha: str
+    git_sha_short: str
+    build_time: str
+    deploy_target: str
+    source_branch: str
+    environment: str
+    frontend_available: bool
+    llm_configured: bool
+    stt_configured: bool
+    provider_base_configured: bool
+    transcription_model_configured: bool
+    tts_enabled: bool
+    tts_provider: str
+    tts_configured: bool
+    tts_region: str
+    tts_voice_type: str
+    tts_codec: str
+    tts_sample_rate: int
+    tts_model_type: int
+    tts_max_concurrency: int
+    tts_rate_limit_per_minute: int
+    server_timestamp: str
 
 
 class TelemetryEvent(BaseModel):
