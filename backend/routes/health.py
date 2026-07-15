@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api", tags=["health"])
 def health() -> dict[str, object]:
     return {
         "status": "ok",
-        "app": "examiner-victoria-v2",
+        "app": "examiner-victoria",
     }
 
 
@@ -30,7 +30,7 @@ def health() -> dict[str, object]:
 def runtime_diagnostics() -> RuntimeDiagnosticsResponse:
     payload = {
         "status": "ok",
-        "app": "examiner-victoria-v2",
+        "app": "examiner-victoria",
         "environment": config.get_public_environment_name(),
         "frontend_available": config.frontend_dist_is_available(),
         "llm_configured": bool(config.API_KEY and config.MODEL),

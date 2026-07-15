@@ -16,7 +16,7 @@ V3 Beta is the current product line on the default branch, `main`. Five anonymou
 - Current-state reference: [V3 Current Status](docs/V3_CURRENT_STATUS.md)
 - Frozen V2 Railway reference: [Examiner Victoria V2](https://examiner-victoria-v2-production.up.railway.app)
 
-The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `waterhomie/examiner-victoria` on 2026-07-13. Local worktree folder names and the legacy-compatible `v2/` application directory were intentionally left unchanged.
+The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `waterhomie/examiner-victoria` on 2026-07-13. The canonical local worktree folder keeps its historical name. The active runtime now lives in top-level `frontend/` and `backend/`; `v2/` remains for compatibility scripts, maintained or historical documents, and frozen V2 evidence.
 
 ## What V3 Beta includes
 
@@ -41,7 +41,9 @@ The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `wat
 - frontend-held sessions passed through API requests
 - no account system or application database
 
-The active application remains in the legacy-compatible `v2/` directory. Imports, Docker paths, scripts, and tests depend on that location, so the directory is not being renamed as part of repository maintenance.
+Active React code lives in `frontend/`, active FastAPI code lives in `backend/`, and the production entrypoint is `backend.app:app`. The built frontend is served from `frontend/dist`.
+
+Phase 1 does not move the root question-bank modules or `v2/scripts`. Phase 2 (question-bank modules) and Phase 3 (scripts, PowerShell names, and active-document relocation) have not been implemented.
 
 ## Deployment and providers
 

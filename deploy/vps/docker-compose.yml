@@ -8,7 +8,7 @@ services:
       - .env
     environment:
       PORT: "8080"
-      FRONTEND_DIST: /app/v2/frontend/dist
+      FRONTEND_DIST: /app/frontend/dist
     expose:
       - "8080"
 

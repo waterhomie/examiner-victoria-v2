@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import os
+from pathlib import Path
 import threading
 import sys
 import time
@@ -9,17 +10,17 @@ import types
 
 from fastapi.testclient import TestClient
 
-import v2.backend.core.config as config
-import v2.backend.core.rate_limit as rate_limit
-import v2.backend.audio_services as audio_services
-import v2.backend.exam_flow_service as exam_flow_service
-import v2.backend.feedback_service as feedback_service
-import v2.backend.part3_service as part3_service
-import v2.backend.report_service as report_service
-import v2.backend.routes.audio as audio_routes
-from v2.backend.app import app
-from v2.backend.engine import build_fallback_report, build_session_learning_summary
-from v2.backend.schemas import ExamSession
+import backend.core.config as config
+import backend.core.rate_limit as rate_limit
+import backend.audio_services as audio_services
+import backend.exam_flow_service as exam_flow_service
+import backend.feedback_service as feedback_service
+import backend.part3_service as part3_service
+import backend.report_service as report_service
+import backend.routes.audio as audio_routes
+from backend.app import app
+from backend.engine import build_fallback_report, build_session_learning_summary
+from backend.schemas import ExamSession
 
 
 DETERMINISTIC_REPORT = """# IELTS Speaking Report
@@ -752,6 +753,10 @@ def assert_mock_mode_starts_cleanly(client: TestClient) -> None:
 
 
 def main() -> None:
+    assert config.ROOT_DIR == Path(__file__).resolve().parents[1], config.ROOT_DIR
+    assert config.DEFAULT_FRONTEND_DIST == config.ROOT_DIR / "frontend" / "dist"
+    assert config.BACKEND_ENV_FILE == config.ROOT_DIR / "backend" / ".env"
+    assert app.title == "Examiner Victoria API", app.title
     client = TestClient(app)
     originals = install_deterministic_ai_stubs()
 
@@ -760,7 +765,7 @@ def main() -> None:
     health_payload = health.json()
     assert health_payload == {
         "status": "ok",
-        "app": "examiner-victoria-v2",
+        "app": "examiner-victoria",
     }, health_payload
     assert "config" not in health_payload, health_payload
     assert "limits" not in health_payload, health_payload
@@ -1318,7 +1323,7 @@ def main() -> None:
         config.RATE_LIMIT_PER_MINUTE = original_rate_limit
         rate_limit.clear_rate_limit_log()
 
-    print("V2 FastAPI smoke test passed")
+    print("FastAPI smoke test passed")
     print(f"phase: {session['phase']}")
     print(f"messages: {len(session['messages'])}")
 

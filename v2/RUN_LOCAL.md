@@ -1,5 +1,7 @@
 # Local Run Guide
 
+> Active source is in `frontend/` and `backend/`; the compatibility launch scripts intentionally remain in `v2/scripts` during Phase 1.
+
 ## Start
 
 From the project root:

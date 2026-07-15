@@ -4,11 +4,13 @@ import os
 from pathlib import Path
 
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
+BACKEND_ENV_FILE = ROOT_DIR / "backend" / ".env"
 FRONTEND_DIST = Path(
     os.getenv(
         "FRONTEND_DIST",
-        Path(__file__).resolve().parents[2] / "frontend" / "dist",
+        DEFAULT_FRONTEND_DIST,
     )
 )
 
@@ -32,7 +34,7 @@ def load_local_env_file(path: Path) -> None:
 
 
 load_local_env_file(ROOT_DIR / ".env")
-load_local_env_file(ROOT_DIR / "v2" / "backend" / ".env")
+load_local_env_file(BACKEND_ENV_FILE)
 
 
 def get_secret(name: str, default: str | None = None) -> str | None:

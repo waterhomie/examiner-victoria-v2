@@ -39,6 +39,8 @@ function Test-ShouldIncludeBundlePath {
         "question_bank.py",
         "pdf_recall_question_bank.py",
         "validate_question_bank.py",
+        "backend",
+        "frontend",
         "v2"
     )
     if (-not ($allowedTopLevel -contains $topLevel)) {
@@ -96,7 +98,7 @@ if (Test-Path -LiteralPath $stagingFull) {
 }
 New-Item -ItemType Directory -Path $stagingFull | Out-Null
 
-Write-Host "Preparing Examiner Victoria V2 public deployment bundle..." -ForegroundColor Cyan
+Write-Host "Preparing Examiner Victoria public deployment bundle..." -ForegroundColor Cyan
 Write-Host "Project: $repoRoot"
 Write-Host "Staging: $stagingFull"
 

@@ -31,12 +31,14 @@ New work branches from `main` and returns to `main` through review.
 
 The current GitHub repository is `waterhomie/examiner-victoria`. Its former name was `waterhomie/examiner-victoria-v2`; GitHub redirects old URLs, but current documentation and Git remotes use the new name.
 
-The active React and FastAPI application remains under the legacy-named `v2/` directory because imports, Docker paths, tests, and scripts depend on that layout. Local worktree folder names were also left unchanged. Repository rename, local folder rename, and source-directory migration are separate decisions.
+The active React application is in top-level `frontend/`, and the active FastAPI application is in top-level `backend/`. The production entrypoint is `backend.app:app`, and FastAPI serves the build from `frontend/dist`. The canonical local worktree folder keeps its historical name.
+
+The root question-bank modules and `v2/scripts` remain in place. Phase 2 (question-bank module migration) and Phase 3 (script directory/name neutralization and active-document relocation) have not been implemented; the remaining `v2/` tree carries those compatibility assets plus maintained or frozen V2 documents.
 
 ## 5. Current architecture
 
-- Frontend: React 19, Vite, and pnpm
-- Backend: FastAPI and Pydantic
+- Frontend: React 19, Vite, and pnpm in `frontend/`
+- Backend: FastAPI and Pydantic in `backend/` (`backend.app:app`)
 - Packaging: one Docker container
 - Serving model: FastAPI serves the built frontend and `/api` routes
 - Sessions: held by the frontend and passed through API requests
@@ -175,7 +177,7 @@ The GitHub repository was renamed on 2026-07-13:
 - current Git remote and documentation links use the new repository name
 - GitHub may redirect former URLs for historical compatibility
 - local worktree folder names were not changed
-- the `v2/` application directory was not changed
+- active runtime code moved to `frontend/` and `backend/`; `v2/scripts`, root question-bank modules, and remaining `v2/` documents stay in place for later phases
 
 ## 17. Documentation authority
 

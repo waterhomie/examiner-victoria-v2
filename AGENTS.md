@@ -7,14 +7,15 @@
 - Current release: `v3.0.0-beta.1`
 - Frozen V2 release: tag `v2.0.0`, commit `d592900e29c0cdcc4576d884c178991deea7013c`
 - Canonical Windows worktree: `D:\Software\Codex\Projects\examiner-victoria-v2-canonical`
-- Secondary Windows worktree: `D:\Software\Codex\Projects\examiner-victoria-v3`
 - Authoritative current state: `docs/V3_CURRENT_STATUS.md`
 
 The local folder names are historical and were not renamed with the GitHub repository. Do not infer repository or product version from a local folder name.
 
 ## Product and directory status
 
-Examiner Victoria V3 Beta is the current `main` product line. The application remains under `v2/` for compatibility because imports, Docker paths, scripts, and tests rely on that directory. Do not move or rename `v2/` during ordinary maintenance.
+Examiner Victoria V3 Beta is the current `main` product line. Active React code is in `frontend/`; active FastAPI code is in `backend/`; the runtime entrypoint is `backend.app:app`; and production static files are built into `frontend/dist`.
+
+The root question-bank modules and `v2/scripts` are intentionally retained for later phases. The remaining `v2/` tree contains compatibility scripts, maintained or historical documents, and frozen V2 evidence. Do not perform the deferred Phase 2 or Phase 3 moves during ordinary maintenance.
 
 V2 remains preserved by tag `v2.0.0`, its frozen commit, QA records, and Railway historical reference. `main` no longer represents the V2 branch.
 
@@ -78,7 +79,7 @@ Stop and request confirmation before:
 - changing CloudBase console configuration or source branch
 - renaming the repository again or changing the default branch
 - changing Git remotes outside an explicitly authorized rename task
-- moving or renaming `v2/` or local worktree folders
+- moving root question-bank modules, `v2/scripts`, remaining `v2/` documents, or local worktree folders
 - deleting a Release or tag
 - deleting a long-lived or unverified branch
 - modifying Prompt, question bank, provider behavior, scoring, or core Practice/Mock flow

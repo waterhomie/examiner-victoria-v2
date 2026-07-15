@@ -3,7 +3,7 @@
 > **Migration record with active reference material.** Planning sections below preserve the original pre-migration reasoning, while dated updates record completed CloudBase and Tencent TTS validation. For a concise authoritative snapshot, use [V3 Current Status](V3_CURRENT_STATUS.md).
 
 审计日期：2026-07-12
-状态更新日期：2026-07-13
+状态更新日期：2026-07-15
 目标分支：`v3/domestic-public-beta`
 计划分支：`docs/v3-cloudbase-migration-plan`
 范围：文档审计与迁移计划；不修改业务代码、不创建腾讯云资源、不部署、不替换 LLM/STT/TTS 供应商。
@@ -25,6 +25,8 @@
 - 腾讯云 TTS 使用低权限子用户凭证；真实 `SecretId` / `SecretKey` 仅存放在 CloudBase 版本环境变量中。
 - 两轮测试中，`POST /api/transcribe`、`POST /api/answer`、`POST /api/tts` 均返回 `200 OK`。
 - 此前的 TTS `502` 与 “Voice is temporarily unavailable” 已消失；文字降级仍作为异常 fallback 保留。
+- 仓库 Phase 1 运行路径已调整为 `frontend/`、`backend/`、`frontend/dist` 与 `backend.app:app`；CloudBase 服务名、来源仓库、`main` 分支和端口不变。
+- 根目录题库模块与 `v2/scripts` 暂时保留；Phase 2 与 Phase 3 尚未实施。
 
 ## 2. 已验证的 Railway 国内访问问题
 
@@ -43,8 +45,8 @@
 
 代码确认：
 
-- 前端目录：`v2/frontend`
-- 后端目录：`v2/backend`
+- 前端目录：`frontend`
+- 后端目录：`backend`
 - 构建与运行入口：仓库根目录 `Dockerfile`
 - Railway 部署配置：`railway.json`
 
@@ -53,8 +55,8 @@
 1. Dockerfile 第一阶段使用 Node 构建 React/Vite 前端。
 2. 生产构建设置 `VITE_API_BASE=""`，让前端 API 走同源路径。
 3. Dockerfile 第二阶段使用 Python 运行 FastAPI。
-4. `FRONTEND_DIST=/app/v2/frontend/dist`，FastAPI 托管前端静态资源。
-5. `PORT=8080`，启动命令为 `python -m uvicorn v2.backend.app:app --host 0.0.0.0 --port ${PORT:-8080}`。
+4. `FRONTEND_DIST=/app/frontend/dist`，FastAPI 托管前端静态资源。
+5. `PORT=8080`，启动命令为 `python -m uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8080}`。
 6. `railway.json` 健康检查路径为 `/api/health`。
 
 当前运行时能力：

@@ -18,7 +18,9 @@ deploy/vps/Caddyfile
 deploy/vps/.env.example
 ```
 
-The app container is built from the root `Dockerfile`. Caddy terminates HTTPS
+The app container is built from the root `Dockerfile`, with active source in
+`frontend/` and `backend/`, static output at `/app/frontend/dist`, and Uvicorn
+entrypoint `backend.app:app`. Caddy terminates HTTPS
 and reverse-proxies traffic to the app on port `8080`.
 
 ## Setup

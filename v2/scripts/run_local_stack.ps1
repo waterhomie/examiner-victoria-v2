@@ -38,7 +38,7 @@ function Get-LanIPv4Address {
 }
 
 $repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
-$frontendRoot = Join-Path $repoRoot "v2\frontend"
+$frontendRoot = Join-Path $repoRoot "frontend"
 $frontendDist = Join-Path $frontendRoot "dist"
 $tmpRoot = Join-Path $repoRoot "tmp"
 $appPort = $FrontendPort
@@ -68,7 +68,7 @@ if (-not (Test-PortFree $appPort)) {
     throw "App port $appPort is already in use. Stop that process or choose another -FrontendPort."
 }
 
-Write-Host "Examiner Victoria V2 fullstack local preview" -ForegroundColor Cyan
+Write-Host "Examiner Victoria fullstack local preview" -ForegroundColor Cyan
 Write-Host "Repository: $repoRoot"
 if ($BackendPort -ne $FrontendPort) {
     Write-Host "Single-process mode: frontend and API will both run on port $FrontendPort. BackendPort $BackendPort is accepted for compatibility only." -ForegroundColor Yellow
@@ -83,7 +83,7 @@ if ($lanIp) {
 if (-not $SkipInstall) {
     Write-Host "Installing backend/frontend dependencies..." -ForegroundColor Cyan
     Set-Location -LiteralPath $repoRoot
-    Invoke-V2Native $python -m pip install -r .\v2\backend\requirements.txt
+    Invoke-V2Native $python -m pip install -r .\backend\requirements.txt
     Set-Location -LiteralPath $frontendRoot
     Invoke-V2Native $pnpm install
 }
@@ -123,7 +123,7 @@ $env:FRONTEND_DIST = $frontendDist
 
 $appProcess = Start-Process `
     -FilePath $python `
-    -ArgumentList @("-m", "uvicorn", "v2.backend.app:app", "--host", "0.0.0.0", "--port", "$appPort") `
+    -ArgumentList @("-m", "uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "$appPort") `
     -WorkingDirectory $repoRoot `
     -RedirectStandardOutput $backendOut `
     -RedirectStandardError $backendErr `
