@@ -13,9 +13,9 @@ dist
 .env
 .env.*
 !*.env.example
-v2/frontend/node_modules
-v2/frontend/dist
-v2/frontend/.env
-v2/frontend/.env.*
-v2/backend/.env
-v2/backend/.env.*
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*

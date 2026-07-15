@@ -45,7 +45,7 @@ def configure_frontend(app: FastAPI) -> None:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Examiner Victoria V2 API",
+        title="Examiner Victoria API",
         version="0.1.0",
         description="Python API backend for the React/iOS-style IELTS speaking coach.",
     )

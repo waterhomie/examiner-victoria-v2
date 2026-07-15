@@ -1,6 +1,6 @@
 # Examiner Victoria application (`v2/` compatibility directory)
 
-> **Current status:** this legacy-named directory contains the active V3 Beta React + FastAPI application. It is not a frozen V2-only tree. Imports, Docker paths, tests, and scripts rely on `v2/`, so the directory will be retained until a separately reviewed compatibility migration.
+> **Current status:** active runtime source is now in top-level `frontend/` and `backend/`. This compatibility directory retains `v2/scripts`, maintained or historical documents, and frozen V2 evidence. Root question-bank modules remain at repository root; Phase 2 and Phase 3 are still deferred.
 
 The architecture originated in V2 when Examiner Victoria moved from Streamlit to React + FastAPI. V3 Beta continues that proven shape:
 
@@ -186,14 +186,14 @@ Manual backend command:
 
 ```powershell
 cd <repo-root>
-python -m pip install -r v2/backend/requirements.txt
-python -m uvicorn v2.backend.app:app --host 0.0.0.0 --port 5174
+python -m pip install -r backend/requirements.txt
+python -m uvicorn backend.app:app --host 0.0.0.0 --port 5174
 ```
 
 For local development, put your private API settings in this ignored file:
 
 ```text
-v2/backend/.env
+backend/.env
 ```
 
 Example:
@@ -210,7 +210,7 @@ Do not paste a real API key into GitHub or chat. The local `.env` file is ignore
 by Git; the committed template is:
 
 ```text
-v2/backend/.env.example
+backend/.env.example
 ```
 
 You can also set the same values directly in PowerShell with `$env:API_KEY="..."`;
@@ -220,13 +220,13 @@ Manual backend smoke test:
 
 ```powershell
 cd <repo-root>
-python -m v2.backend.smoke_test
+python -m backend.smoke_test
 ```
 
 Advanced frontend-only debug command:
 
 ```powershell
-cd v2/frontend
+cd frontend
 pnpm install
 pnpm run dev
 ```
@@ -242,7 +242,7 @@ http://127.0.0.1:5174
 Frontend deployment variables are listed in:
 
 ```text
-v2/frontend/.env.example
+frontend/.env.example
 ```
 
 ## Current application capabilities
@@ -297,7 +297,7 @@ v2/frontend/.env.example
   practice starts and completion, Mock-mode start, and Part 3 maximum-count guard.
 - Local stack helper smoke test on alternate ports: backend health and frontend HTTP status.
 - Deployment smoke-check helper for public backend/frontend URLs, CORS, question bank, and core API flow.
-- FastAPI route smoke test with `python -m v2.backend.smoke_test`:
+- FastAPI route smoke test with `python -m backend.smoke_test`:
   `/api/health`, `/api/question-bank`, `/api/sessions`, `/api/answer`,
   report fallback behavior, oversized audio rejection for `/api/transcribe`,
   user-safe 502 messages for transcription/TTS provider failures, report

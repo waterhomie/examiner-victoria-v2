@@ -1,6 +1,6 @@
 param(
     [switch]$BuildDockerImage,
-    [string]$ImageTag = "examiner-victoria-v2:local-check"
+    [string]$ImageTag = "examiner-victoria:local-check"
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
 Set-Location $repoRoot
 
-Write-Host "Checking Examiner Victoria V2 deployment config..." -ForegroundColor Cyan
+Write-Host "Checking Examiner Victoria deployment config..." -ForegroundColor Cyan
 
 $requiredFiles = @(
     ".\Dockerfile",
@@ -22,10 +22,10 @@ $requiredFiles = @(
     ".\v2\scripts\prepare_public_deploy_bundle.ps1",
     ".\v2\scripts\generate_admin_token.ps1",
     ".\v2\scripts\sync_public_deploy_github.ps1",
-    ".\v2\backend\.env.example",
-    ".\v2\backend\requirements.txt",
-    ".\v2\frontend\package.json",
-    ".\v2\frontend\pnpm-lock.yaml"
+    ".\backend\.env.example",
+    ".\backend\requirements.txt",
+    ".\frontend\package.json",
+    ".\frontend\pnpm-lock.yaml"
 )
 foreach ($file in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $file)) {
@@ -39,9 +39,9 @@ $requiredDockerMarkers = @(
     "pnpm install --frozen-lockfile",
     "pnpm run build",
     "FROM python:",
-    "FRONTEND_DIST=/app/v2/frontend/dist",
+    "FRONTEND_DIST=/app/frontend/dist",
     "question_bank.py",
-    "uvicorn v2.backend.app:app"
+    "uvicorn backend.app:app"
 )
 foreach ($marker in $requiredDockerMarkers) {
     if (-not $dockerfile.Contains($marker)) {
@@ -65,7 +65,7 @@ foreach ($marker in @("env: docker", "dockerfilePath: ./Dockerfile", "healthChec
 }
 
 $dockerignore = Get-Content -LiteralPath ".\.dockerignore" -Raw
-foreach ($marker in @(".env", "node_modules", "v2/frontend/dist", "tmp")) {
+foreach ($marker in @(".env", "node_modules", "frontend/dist", "tmp")) {
     if (-not $dockerignore.Contains($marker)) {
         throw ".dockerignore is missing expected marker: $marker"
     }
@@ -99,10 +99,10 @@ foreach ($marker in @('email {$ACME_EMAIL}', '{$DOMAIN}', "reverse_proxy app:808
     }
 }
 
-$backendEnvExample = Get-Content -LiteralPath ".\v2\backend\.env.example" -Raw
+$backendEnvExample = Get-Content -LiteralPath ".\backend\.env.example" -Raw
 foreach ($marker in @("API_KEY=", "BASE_URL=", "MODEL=", "TRANSCRIPTION_MODEL=", "ADMIN_TOKEN=", "TELEMETRY_MAX_EVENTS=")) {
     if (-not $backendEnvExample.Contains($marker)) {
-        throw "v2/backend/.env.example is missing expected marker: $marker"
+        throw "backend/.env.example is missing expected marker: $marker"
     }
 }
 

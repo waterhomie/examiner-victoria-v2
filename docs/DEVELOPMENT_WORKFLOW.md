@@ -10,6 +10,8 @@
 - Frozen V2 evidence: tag `v2.0.0`, commit `d592900e29c0cdcc4576d884c178991deea7013c`
 - CloudBase source branch: `main`
 - The former `v3/domestic-public-beta` integration branch is retired
+- Active runtime paths: `frontend/`, `backend/`, `frontend/dist`, and `backend.app:app`
+- Deferred paths: root question-bank modules remain in place; compatibility scripts remain in `v2/scripts` until later phases
 
 ## Normal task lifecycle
 

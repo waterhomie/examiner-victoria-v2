@@ -12,89 +12,89 @@ $python = Resolve-V2Python
 $pnpm = Resolve-V2Pnpm
 Add-V2PythonPath -RepoRoot $repoRoot
 
-Write-Host "Running Examiner Victoria V2 checks..." -ForegroundColor Cyan
+Write-Host "Running Examiner Victoria checks..." -ForegroundColor Cyan
 
 if (-not $SkipInstall) {
-    Invoke-V2Native $python -m pip install -r .\v2\backend\requirements.txt
-    Push-Location .\v2\frontend
+    Invoke-V2Native $python -m pip install -r .\backend\requirements.txt
+    Push-Location .\frontend
     Invoke-V2Native $pnpm install
     Pop-Location
 }
 
 $requiredStructureFiles = @(
-    ".\v2\frontend\src\App.jsx",
-    ".\v2\frontend\src\components\layout\AnswerComposer.jsx",
-    ".\v2\frontend\src\components\layout\ChatPanel.jsx",
-    ".\v2\frontend\src\components\layout\ExamHeader.jsx",
-    ".\v2\frontend\src\components\layout\ExamStageCard.jsx",
-    ".\v2\frontend\src\components\messages\MessageViews.jsx",
-    ".\v2\frontend\src\hooks\useAnswerRecording.js",
-    ".\v2\frontend\src\hooks\useBrowserEffects.js",
-    ".\v2\frontend\src\hooks\useExamController.js",
-    ".\v2\frontend\src\hooks\useSpeechPlayback.js",
-    ".\v2\frontend\src\state\actions.js",
-    ".\v2\frontend\src\state\appReducer.js",
-    ".\v2\frontend\src\state\initialState.js",
-    ".\v2\frontend\src\state\selectors.js",
-    ".\v2\frontend\src\utils\sessionView.js",
-    ".\v2\frontend\src\styles.css",
-    ".\v2\frontend\src\styles\base.css",
-    ".\v2\frontend\src\styles\header.css",
-    ".\v2\frontend\src\styles\stage.css",
-    ".\v2\frontend\src\styles\chat.css",
-    ".\v2\frontend\src\styles\report.css",
-    ".\v2\frontend\src\styles\composer.css",
-    ".\v2\frontend\src\styles\mobile.css",
-    ".\v2\backend\app.py",
-    ".\v2\backend\core\config.py",
-    ".\v2\backend\core\payload_limits.py",
-    ".\v2\backend\core\rate_limit.py",
-    ".\v2\backend\engine.py",
-    ".\v2\backend\ai_provider.py",
-    ".\v2\backend\audio_services.py",
-    ".\v2\backend\exam_flow_service.py",
-    ".\v2\backend\feedback_service.py",
-    ".\v2\backend\part3_service.py",
-    ".\v2\backend\question_bank_service.py",
-    ".\v2\backend\report_service.py",
-    ".\v2\backend\routes\answer.py",
-    ".\v2\backend\routes\audio.py",
-    ".\v2\backend\routes\health.py",
-    ".\v2\backend\routes\report.py",
-    ".\v2\backend\routes\sessions.py",
-    ".\v2\backend\routes\telemetry.py",
-    ".\v2\backend\schemas.py"
+    ".\frontend\src\App.jsx",
+    ".\frontend\src\components\layout\AnswerComposer.jsx",
+    ".\frontend\src\components\layout\ChatPanel.jsx",
+    ".\frontend\src\components\layout\ExamHeader.jsx",
+    ".\frontend\src\components\layout\ExamStageCard.jsx",
+    ".\frontend\src\components\messages\MessageViews.jsx",
+    ".\frontend\src\hooks\useAnswerRecording.js",
+    ".\frontend\src\hooks\useBrowserEffects.js",
+    ".\frontend\src\hooks\useExamController.js",
+    ".\frontend\src\hooks\useSpeechPlayback.js",
+    ".\frontend\src\state\actions.js",
+    ".\frontend\src\state\appReducer.js",
+    ".\frontend\src\state\initialState.js",
+    ".\frontend\src\state\selectors.js",
+    ".\frontend\src\utils\sessionView.js",
+    ".\frontend\src\styles.css",
+    ".\frontend\src\styles\base.css",
+    ".\frontend\src\styles\header.css",
+    ".\frontend\src\styles\stage.css",
+    ".\frontend\src\styles\chat.css",
+    ".\frontend\src\styles\report.css",
+    ".\frontend\src\styles\composer.css",
+    ".\frontend\src\styles\mobile.css",
+    ".\backend\app.py",
+    ".\backend\core\config.py",
+    ".\backend\core\payload_limits.py",
+    ".\backend\core\rate_limit.py",
+    ".\backend\engine.py",
+    ".\backend\ai_provider.py",
+    ".\backend\audio_services.py",
+    ".\backend\exam_flow_service.py",
+    ".\backend\feedback_service.py",
+    ".\backend\part3_service.py",
+    ".\backend\question_bank_service.py",
+    ".\backend\report_service.py",
+    ".\backend\routes\answer.py",
+    ".\backend\routes\audio.py",
+    ".\backend\routes\health.py",
+    ".\backend\routes\report.py",
+    ".\backend\routes\sessions.py",
+    ".\backend\routes\telemetry.py",
+    ".\backend\schemas.py"
 )
 foreach ($structureFile in $requiredStructureFiles) {
     if (-not (Test-Path -LiteralPath $structureFile)) {
-        throw "Required V2 structure file is missing: $structureFile"
+        throw "Required structure file is missing: $structureFile"
     }
 }
 
-$appLineCount = (Get-Content -LiteralPath ".\v2\frontend\src\App.jsx").Count
+$appLineCount = (Get-Content -LiteralPath ".\frontend\src\App.jsx").Count
 if ($appLineCount -gt 360) {
     throw "App.jsx has grown to $appLineCount lines. Keep App.jsx as a coordinator and move UI/detail logic into components, hooks, or utils."
 }
 
-$backendAppLineCount = (Get-Content -LiteralPath ".\v2\backend\app.py").Count
+$backendAppLineCount = (Get-Content -LiteralPath ".\backend\app.py").Count
 if ($backendAppLineCount -gt 180) {
     throw "backend/app.py has grown to $backendAppLineCount lines. Keep it as an app factory, router mount, and static frontend shell."
 }
 
-$engineLineCount = (Get-Content -LiteralPath ".\v2\backend\engine.py").Count
+$engineLineCount = (Get-Content -LiteralPath ".\backend\engine.py").Count
 if ($engineLineCount -gt 180) {
     throw "engine.py has grown to $engineLineCount lines. Keep engine.py as a coordinator and move domain logic into service modules."
 }
 
-$mainJsx = Get-Content -LiteralPath ".\v2\frontend\src\main.jsx" -Raw
+$mainJsx = Get-Content -LiteralPath ".\frontend\src\main.jsx" -Raw
 $stylesImportIndex = $mainJsx.IndexOf('import "./styles.css";')
 $mobileStylesImportIndex = $mainJsx.IndexOf('import "./styles/mobile.css";')
 if ($stylesImportIndex -lt 0 -or $mobileStylesImportIndex -lt 0 -or $stylesImportIndex -gt $mobileStylesImportIndex) {
     throw "Frontend style imports must load styles.css before styles/mobile.css."
 }
 
-$desktopStyles = Get-Content -LiteralPath ".\v2\frontend\src\styles.css" -Raw
-$mobileStyles = Get-Content -LiteralPath ".\v2\frontend\src\styles\mobile.css" -Raw
+$desktopStyles = Get-Content -LiteralPath ".\frontend\src\styles.css" -Raw
+$mobileStyles = Get-Content -LiteralPath ".\frontend\src\styles\mobile.css" -Raw
 $requiredStyleImports = @(
     '@import "./styles/base.css";',
     '@import "./styles/header.css";',
@@ -108,12 +108,12 @@ foreach ($styleImport in $requiredStyleImports) {
         throw "styles.css must remain a shared CSS entrypoint and import: $styleImport"
     }
 }
-$nonMobileStyleFiles = Get-ChildItem -LiteralPath ".\v2\frontend\src\styles" -Filter "*.css" -File |
+$nonMobileStyleFiles = Get-ChildItem -LiteralPath ".\frontend\src\styles" -Filter "*.css" -File |
     Where-Object { $_.Name -ne "mobile.css" }
 foreach ($styleFile in $nonMobileStyleFiles) {
     $styleText = Get-Content -LiteralPath $styleFile.FullName -Raw
     if ($styleText -match "@media\s*\(max-width:\s*620px\)") {
-        throw "Phone breakpoint rules should live in v2/frontend/src/styles/mobile.css, not $($styleFile.Name)."
+        throw "Phone breakpoint rules should live in frontend/src/styles/mobile.css, not $($styleFile.Name)."
     }
 }
 if ($mobileStyles -notmatch "@media\s*\(max-width:\s*620px\)") {
@@ -138,7 +138,7 @@ if ($mobileStyles -notmatch "\.chat-bottom-anchor\s*\{[\s\S]*?flex-basis:\s*calc
     throw "styles/mobile.css must define a mobile .chat-bottom-anchor sized above the fixed composer."
 }
 
-$chatPanelSource = Get-Content -LiteralPath ".\v2\frontend\src\components\layout\ChatPanel.jsx" -Raw
+$chatPanelSource = Get-Content -LiteralPath ".\frontend\src\components\layout\ChatPanel.jsx" -Raw
 if ($chatPanelSource -notmatch 'className="chat-bottom-anchor"' -or $chatPanelSource -notmatch 'data-testid="chat-bottom-anchor"' -or $chatPanelSource -notmatch 'ref=\{bottomRef\}') {
     throw "ChatPanel must render a real chat-bottom-anchor bound to bottomRef."
 }
@@ -146,7 +146,7 @@ if ($chatPanelSource -notmatch 'className="chat-scroll-slack"' -or $chatPanelSou
     throw "ChatPanel must render chat-scroll-slack so short mobile chats can keep limited native bounce without moving the first message."
 }
 
-$browserEffectsSource = Get-Content -LiteralPath ".\v2\frontend\src\hooks\useBrowserEffects.js" -Raw
+$browserEffectsSource = Get-Content -LiteralPath ".\frontend\src\hooks\useBrowserEffects.js" -Raw
 if ($browserEffectsSource -notmatch "answerCount\s*===\s*0" -or $browserEffectsSource -notmatch "contentBottomBeforeAnchor" -or $browserEffectsSource -notmatch "visibleSafeHeight" -or $browserEffectsSource -notmatch "shouldFollowBottom") {
     throw "useAutoScrollToLatest must keep initial messages in natural flow and follow bottom only after real content reaches the composer safe area."
 }
@@ -154,16 +154,16 @@ if ($browserEffectsSource -notmatch "SHORT_SCROLL_SLACK_PX\s*=\s*48" -or $browse
     throw "useAutoScrollToLatest must maintain a small dynamic short-scroll slack for limited mobile bounce."
 }
 
-$frontendSourceFiles = Get-ChildItem -LiteralPath ".\v2\frontend\src" -Recurse -File |
+$frontendSourceFiles = Get-ChildItem -LiteralPath ".\frontend\src" -Recurse -File |
     Where-Object { $_.Extension -in @(".js", ".jsx") -and $_.Name -ne "api.js" }
 foreach ($frontendFile in $frontendSourceFiles) {
     $frontendText = Get-Content -LiteralPath $frontendFile.FullName -Raw
     if ($frontendText -match "\bfetch\s*\(") {
-        throw "Frontend API calls must go through v2/frontend/src/api.js, but fetch() appears in $($frontendFile.FullName)."
+        throw "Frontend API calls must go through frontend/src/api.js, but fetch() appears in $($frontendFile.FullName)."
     }
 }
 
-$backendServiceFiles = Get-ChildItem -LiteralPath ".\v2\backend" -Filter "*_service.py" -File
+$backendServiceFiles = Get-ChildItem -LiteralPath ".\backend" -Filter "*_service.py" -File
 foreach ($serviceFile in $backendServiceFiles) {
     $serviceText = Get-Content -LiteralPath $serviceFile.FullName -Raw
     if ($serviceText -match "from\s+fastapi|import\s+fastapi") {
@@ -172,26 +172,26 @@ foreach ($serviceFile in $backendServiceFiles) {
 }
 
 Invoke-V2Native $python -m py_compile `
-    .\v2\backend\ai_provider.py `
-    .\v2\backend\core\config.py `
-    .\v2\backend\core\payload_limits.py `
-    .\v2\backend\core\rate_limit.py `
-    .\v2\backend\audio_services.py `
-    .\v2\backend\exam_flow_service.py `
-    .\v2\backend\feedback_service.py `
-    .\v2\backend\part3_service.py `
-    .\v2\backend\question_bank_service.py `
-    .\v2\backend\report_service.py `
-    .\v2\backend\schemas.py `
-    .\v2\backend\engine.py `
-    .\v2\backend\routes\answer.py `
-    .\v2\backend\routes\audio.py `
-    .\v2\backend\routes\health.py `
-    .\v2\backend\routes\report.py `
-    .\v2\backend\routes\sessions.py `
-    .\v2\backend\routes\telemetry.py `
-    .\v2\backend\app.py `
-    .\v2\backend\smoke_test.py `
+    .\backend\ai_provider.py `
+    .\backend\core\config.py `
+    .\backend\core\payload_limits.py `
+    .\backend\core\rate_limit.py `
+    .\backend\audio_services.py `
+    .\backend\exam_flow_service.py `
+    .\backend\feedback_service.py `
+    .\backend\part3_service.py `
+    .\backend\question_bank_service.py `
+    .\backend\report_service.py `
+    .\backend\schemas.py `
+    .\backend\engine.py `
+    .\backend\routes\answer.py `
+    .\backend\routes\audio.py `
+    .\backend\routes\health.py `
+    .\backend\routes\report.py `
+    .\backend\routes\sessions.py `
+    .\backend\routes\telemetry.py `
+    .\backend\app.py `
+    .\backend\smoke_test.py `
     .\question_bank.py `
     .\pdf_recall_question_bank.py `
     .\validate_question_bank.py
@@ -227,17 +227,17 @@ foreach ($scriptFile in $scriptFiles) {
 }
 
 Invoke-V2Native $python .\validate_question_bank.py
-Invoke-V2Native $python -m v2.backend.smoke_test
+Invoke-V2Native $python -m backend.smoke_test
 powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deploy_config.ps1
 
-Push-Location .\v2\frontend
+Push-Location .\frontend
 Invoke-V2Native $pnpm run test:smoke
 Invoke-V2Native $pnpm run build
 Pop-Location
 
-$distIndex = Join-Path $repoRoot "v2\frontend\dist\index.html"
+$distIndex = Join-Path $repoRoot "frontend\dist\index.html"
 if (-not (Test-Path -LiteralPath $distIndex)) {
-    throw "Frontend build did not create v2\frontend\dist\index.html"
+    throw "Frontend build did not create frontend\dist\index.html"
 }
 $distHtml = Get-Content -LiteralPath $distIndex -Raw
 if ($distHtml -match "@vite/client" -or $distHtml -match "/src/main.jsx") {
@@ -247,7 +247,7 @@ if ($distHtml -notmatch "/assets/index-.*\.js" -or $distHtml -notmatch "/assets/
     throw "Frontend dist does not reference expected production JS/CSS assets."
 }
 
-$distJsFiles = Get-ChildItem -LiteralPath (Join-Path $repoRoot "v2\frontend\dist\assets") -Filter "index-*.js" -File
+$distJsFiles = Get-ChildItem -LiteralPath (Join-Path $repoRoot "frontend\dist\assets") -Filter "index-*.js" -File
 if (-not $distJsFiles) {
     throw "Frontend build did not create a production JS bundle."
 }
@@ -287,4 +287,4 @@ foreach ($file in $sourceFiles) {
     }
 }
 
-Write-Host "All V2 checks passed." -ForegroundColor Green
+Write-Host "All checks passed." -ForegroundColor Green

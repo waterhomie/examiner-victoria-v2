@@ -8,10 +8,10 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "_common.ps1")
 
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
-$frontendRoot = Join-Path $repoRoot "v2\frontend"
+$frontendRoot = Join-Path $repoRoot "frontend"
 $pnpm = Resolve-V2Pnpm
 
-Write-Host "Examiner Victoria V2 frontend" -ForegroundColor Cyan
+Write-Host "Examiner Victoria frontend" -ForegroundColor Cyan
 Write-Host "Frontend: $frontendRoot"
 
 Set-Location $frontendRoot

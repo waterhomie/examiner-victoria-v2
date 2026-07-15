@@ -44,11 +44,19 @@ function assertProductMetadata() {
   const indexHtml = readFileSync("./index.html", "utf8");
   const manifestSource = readFileSync("./public/manifest.webmanifest", "utf8");
   const manifest = JSON.parse(manifestSource);
+  const packageMetadata = JSON.parse(readFileSync("./package.json", "utf8"));
+  const downloadsSource = readFileSync("./src/utils/downloads.js", "utf8");
+  const appConfigSource = readFileSync("./src/config/appConfig.js", "utf8");
 
   assert.match(indexHtml, /<title>Examiner Victoria<\/title>/);
   assert.doesNotMatch(indexHtml, /<title>Examiner Victoria V2<\/title>/);
   assert.equal(manifest.name, "Examiner Victoria");
   assert.equal(manifest.short_name, "Victoria");
+  assert.equal(packageMetadata.name, "examiner-victoria-frontend");
+  assert.match(downloadsSource, /Examiner Victoria - IELTS Speaking Transcript/);
+  assert.match(downloadsSource, /Examiner Victoria - Practice Record/);
+  assert.doesNotMatch(downloadsSource, /Examiner Victoria V2/);
+  assert.match(appConfigSource, /examiner-victoria-v2-state/);
   assert.doesNotMatch(manifestSource, /Examiner Victoria V2|Examiner Victoria V3(?: Beta)?/);
 }
 
@@ -424,4 +432,4 @@ assertTelemetryFailureIsNonBlocking();
 assertRuntimeDiagnosticsUtilities();
 await assertRuntimeDiagnosticsApiMapping();
 
-console.log("V2 frontend smoke test passed");
+console.log("Frontend smoke test passed");

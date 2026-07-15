@@ -1,4 +1,4 @@
-# Examiner Victoria V2 Backend Architecture
+# Examiner Victoria Backend Architecture
 
 The backend is a FastAPI app with a small set of service modules. The goal is
 to keep the exam engine readable and avoid mixing API routing, model-provider
@@ -7,10 +7,10 @@ details, question-bank data, audio services, and report generation in one file.
 ## Module map
 
 ```text
-v2/backend/
+backend/
   app.py
     FastAPI app factory, CORS middleware, route mounting, static frontend
-    serving, and the Railway-compatible `v2.backend.app:app` entrypoint.
+    serving, and the container-compatible `backend.app:app` entrypoint.
 
   core/
     config.py
@@ -114,7 +114,7 @@ v2/backend/
 - `app.py` should stay small. New API endpoints belong in `routes/`, then get
   mounted from `create_app()`.
 - New environment variables should be parsed in `core/config.py` and mirrored
-  in `v2/backend/.env.example`, `deploy/vps/.env.example`, and deployment
+  in `backend/.env.example`, `deploy/vps/.env.example`, and deployment
   templates where relevant.
 - `/api/telemetry` may accept anonymous performance metadata, but
   `/api/telemetry/summary` must stay protected by `ADMIN_TOKEN`.

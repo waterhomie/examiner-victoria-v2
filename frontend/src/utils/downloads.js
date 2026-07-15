@@ -15,7 +15,7 @@ export function downloadTextFile(filename, content) {
 
 export function buildTranscriptText(session) {
   const lines = [
-    "Examiner Victoria V2 - IELTS Speaking Transcript",
+    "Examiner Victoria - IELTS Speaking Transcript",
     `Session ID: ${session?.session_id || "unknown"}`,
     "",
   ];
@@ -48,7 +48,7 @@ export function buildPracticeRecordText(session, report) {
   const cueCard = session?.cue_card || {};
 
   const lines = [
-    "Examiner Victoria V2 - Practice Record",
+    "Examiner Victoria - Practice Record",
     `Generated at: ${new Date().toLocaleString()}`,
     `Session ID: ${session?.session_id || "unknown"}`,
     "",

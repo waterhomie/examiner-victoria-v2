@@ -1,6 +1,6 @@
 # Examiner Victoria V3 Beta deployment
 
-> The active application remains in the legacy-compatible `v2/` directory. Current release facts are maintained in [V3 Current Status](../docs/V3_CURRENT_STATUS.md).
+> Active runtime source is in top-level `frontend/` and `backend/`. Compatibility scripts and this maintained deployment guide remain under `v2/` until a later phase. Current release facts are maintained in [V3 Current Status](../docs/V3_CURRENT_STATUS.md).
 
 The GitHub source repository is [`waterhomie/examiner-victoria`](https://github.com/waterhomie/examiner-victoria). Examiner Victoria uses one Docker container: Vite builds the React frontend, FastAPI serves the resulting static files, and the same HTTPS origin exposes `/api`. This deployment shape is supported on CloudBase Run and remains compatible with Railway.
 
@@ -38,7 +38,7 @@ render.yaml
 v2/scripts/check_deploy_config.ps1
 ```
 
-The root Dockerfile builds `v2/frontend` with pnpm, copies the React `dist` into the Python image, installs `v2/backend/requirements.txt`, and starts the FastAPI application. The hosting platform supplies `PORT`; CloudBase currently expects `8080`.
+The root Dockerfile builds `frontend` with pnpm, copies the React `dist` into the Python image, installs `backend/requirements.txt`, and starts the FastAPI application. The hosting platform supplies `PORT`; CloudBase currently expects `8080`.
 
 FastAPI serves:
 

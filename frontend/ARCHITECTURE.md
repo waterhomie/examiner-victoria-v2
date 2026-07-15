@@ -1,4 +1,4 @@
-# Examiner Victoria V2 Frontend Architecture
+# Examiner Victoria Frontend Architecture
 
 This frontend is organized by responsibility. The goal is to keep `App.jsx`
 as the screen coordinator instead of a file that owns every UI detail,
@@ -7,7 +7,7 @@ session calculation, browser workaround, and export format.
 ## Directory map
 
 ```text
-src/
+frontend/src/
   App.jsx
     Main screen assembly. It wires reducer state, controller actions, browser
     effects, recording/playback hooks, and layout components.
