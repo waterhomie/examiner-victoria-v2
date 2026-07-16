@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 
 Write-Host "Checking Examiner Victoria deployment config..." -ForegroundColor Cyan
@@ -19,9 +19,9 @@ $requiredFiles = @(
     ".\deploy\vps\docker-compose.yml",
     ".\deploy\vps\.env.example",
     ".\deploy\vps\README.md",
-    ".\v2\scripts\prepare_public_deploy_bundle.ps1",
-    ".\v2\scripts\generate_admin_token.ps1",
-    ".\v2\scripts\sync_public_deploy_github.ps1",
+    ".\scripts\prepare_public_deploy_bundle.ps1",
+    ".\scripts\generate_admin_token.ps1",
+    ".\scripts\sync_public_deploy_github.ps1",
     ".\backend\.env.example",
     ".\backend\requirements.txt",
     ".\frontend\package.json",
@@ -71,14 +71,14 @@ foreach ($marker in @(".env", "node_modules", "frontend/dist", "tmp")) {
     }
 }
 
-$bundleScript = Get-Content -LiteralPath ".\v2\scripts\prepare_public_deploy_bundle.ps1" -Raw
-foreach ($marker in @("examiner-victoria-v2-deploy-bundle.zip", "Test-ShouldIncludeBundlePath", "Dockerfile", "deploy", "railway.json", "render.yaml", "secretPattern")) {
+$bundleScript = Get-Content -LiteralPath ".\scripts\prepare_public_deploy_bundle.ps1" -Raw
+foreach ($marker in @("examiner-victoria-deploy-bundle.zip", "Test-ShouldIncludeBundlePath", "Dockerfile", "deploy", "railway.json", "render.yaml", "secretPattern")) {
     if (-not $bundleScript.Contains($marker)) {
         throw "prepare_public_deploy_bundle.ps1 is missing expected marker: $marker"
     }
 }
 
-$syncScript = Get-Content -LiteralPath ".\v2\scripts\sync_public_deploy_github.ps1" -Raw
+$syncScript = Get-Content -LiteralPath ".\scripts\sync_public_deploy_github.ps1" -Raw
 foreach ($marker in @("param(", "-Push", "Dry run complete", "gh auth status", "git push", "add .")) {
     if (-not $syncScript.Contains($marker)) {
         throw "sync_public_deploy_github.ps1 is missing expected marker: $marker"

@@ -65,7 +65,7 @@ https://your-domain.com/api/health
 Then run the public smoke check from your Windows project folder:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deployed_v2.ps1 `
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_deployed_app.ps1 `
   -BackendUrl "https://your-domain.com" `
   -FrontendUrl "https://your-domain.com"
 ```

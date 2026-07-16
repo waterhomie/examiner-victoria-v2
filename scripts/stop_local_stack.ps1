@@ -13,16 +13,25 @@ function Resolve-RealPath {
     return $item.FullName
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 $tmpRoot = Join-Path $repoRoot "tmp"
-$pidFile = Join-Path $tmpRoot "v2_server_pids.txt"
-$tunnelPidFile = Join-Path $tmpRoot "v2_tunnel_pid.txt"
-$tunnelUrlFile = Join-Path $tmpRoot "v2_tunnel_url.txt"
+$pidFiles = @(
+    (Join-Path $tmpRoot "server_pids.txt"),
+    (Join-Path $tmpRoot ("v2_" + "server_pids.txt"))
+)
+$tunnelPidFiles = @(
+    (Join-Path $tmpRoot "tunnel_pid.txt"),
+    (Join-Path $tmpRoot ("v2_" + "tunnel_pid.txt"))
+)
+$tunnelUrlFiles = @(
+    (Join-Path $tmpRoot "tunnel_url.txt"),
+    (Join-Path $tmpRoot ("v2_" + "tunnel_url.txt"))
+)
 $portList = $Ports -split "[,\s;]+" |
     Where-Object { $_ } |
     ForEach-Object { [int]$_ }
 
-Write-Host "Stopping Examiner Victoria V2 local stack..." -ForegroundColor Cyan
+Write-Host "Stopping Examiner Victoria local stack..." -ForegroundColor Cyan
 Write-Host "Ports: $($portList -join ', ')"
 
 function Stop-RecordedPids {
@@ -70,8 +79,9 @@ function Stop-ListenersOnPort {
     }
 }
 
-Stop-RecordedPids -Path $pidFile
-Stop-RecordedPids -Path $tunnelPidFile
+foreach ($recordedPidFile in ($pidFiles + $tunnelPidFiles)) {
+    Stop-RecordedPids -Path $recordedPidFile
+}
 
 Start-Sleep -Seconds 1
 
@@ -79,5 +89,5 @@ foreach ($port in $portList) {
     Stop-ListenersOnPort -Port $port
 }
 
-Remove-Item -LiteralPath $pidFile, $tunnelPidFile, $tunnelUrlFile -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ($pidFiles + $tunnelPidFiles + $tunnelUrlFiles) -Force -ErrorAction SilentlyContinue
 Write-Host "Local stack stop command finished." -ForegroundColor Green

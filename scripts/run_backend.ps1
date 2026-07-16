@@ -7,10 +7,10 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "_common.ps1")
 
-$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
-$python = Resolve-V2Python
-Add-V2PythonPath -RepoRoot $repoRoot
+$python = Resolve-ProjectPython
+Add-ProjectPythonPath -RepoRoot $repoRoot
 
 Write-Host "Examiner Victoria backend" -ForegroundColor Cyan
 Write-Host "Repository: $repoRoot"
@@ -25,6 +25,6 @@ if (-not $env:API_KEY) {
 }
 
 if (-not $SkipInstall) {
-    Invoke-V2Native $python -m pip install -r .\backend\requirements.txt
+    Invoke-ProjectNative $python -m pip install -r .\backend\requirements.txt
 }
-Invoke-V2Native $python -m uvicorn backend.app:app --reload --host 0.0.0.0 --port $Port
+Invoke-ProjectNative $python -m uvicorn backend.app:app --reload --host 0.0.0.0 --port $Port

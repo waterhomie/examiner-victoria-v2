@@ -6,18 +6,18 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "_common.ps1")
 
-$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
-$python = Resolve-V2Python
-$pnpm = Resolve-V2Pnpm
-Add-V2PythonPath -RepoRoot $repoRoot
+$python = Resolve-ProjectPython
+$pnpm = Resolve-ProjectPnpm
+Add-ProjectPythonPath -RepoRoot $repoRoot
 
 Write-Host "Running Examiner Victoria checks..." -ForegroundColor Cyan
 
 if (-not $SkipInstall) {
-    Invoke-V2Native $python -m pip install -r .\backend\requirements.txt
+    Invoke-ProjectNative $python -m pip install -r .\backend\requirements.txt
     Push-Location .\frontend
-    Invoke-V2Native $pnpm install
+    Invoke-ProjectNative $pnpm install
     Pop-Location
 }
 
@@ -69,6 +69,67 @@ foreach ($structureFile in $requiredStructureFiles) {
     if (-not (Test-Path -LiteralPath $structureFile)) {
         throw "Required structure file is missing: $structureFile"
     }
+}
+
+$requiredCurrentFiles = @(
+    ".\scripts\check_project.ps1",
+    ".\scripts\check_deployed_app.ps1",
+    ".\docs\RUN_LOCAL.md",
+    ".\docs\DEPLOYMENT.md"
+)
+foreach ($currentFile in $requiredCurrentFiles) {
+    if (-not (Test-Path -LiteralPath $currentFile)) {
+        throw "Required current file is missing: $currentFile"
+    }
+}
+
+$legacyVersionName = "v" + "2"
+$historicalRoot = Join-Path $repoRoot $legacyVersionName
+$legacyScriptsRoot = Join-Path $historicalRoot "scripts"
+if (Test-Path -LiteralPath $legacyScriptsRoot) {
+    throw "The historical directory must not contain active scripts."
+}
+
+$allowedHistoricalFiles = @(
+    "API_CONTRACT.md",
+    "CHECKLIST.md",
+    "COMPLETION_AUDIT.md",
+    "MOBILE_QA.md",
+    "MOBILE_QA_RESULT.template.md",
+    "README.md"
+) | Sort-Object
+$trackedHistoricalPaths = @(& git ls-files -- $legacyVersionName)
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to inspect tracked historical files."
+}
+$actualHistoricalFiles = foreach ($trackedHistoricalPath in $trackedHistoricalPaths) {
+    $relativeHistoricalPath = $trackedHistoricalPath.Substring($legacyVersionName.Length + 1)
+    if ($relativeHistoricalPath -match "[/\\]") {
+        throw "The historical directory contains an unexpected tracked subdirectory path: $trackedHistoricalPath"
+    }
+    $relativeHistoricalPath
+}
+$actualHistoricalFiles = $actualHistoricalFiles | Sort-Object
+$historicalDifference = Compare-Object -ReferenceObject $allowedHistoricalFiles -DifferenceObject $actualHistoricalFiles
+if ($historicalDifference) {
+    throw "The historical directory file allowlist does not match: $($historicalDifference | Out-String)"
+}
+
+$legacyFunctionPattern = "(Resolve|Add|Invoke)-" + ("V" + "2")
+$legacyScriptsPattern = ("v" + "2") + "[/\\]+scripts"
+$legacyMainCheckName = "check_" + ("v" + "2") + ".ps1"
+$legacyDeployCheckName = "check_deployed_" + ("v" + "2") + ".ps1"
+foreach ($activeScript in (Get-ChildItem -LiteralPath ".\scripts" -Filter "*.ps1" -File)) {
+    $activeScriptText = Get-Content -LiteralPath $activeScript.FullName -Raw
+    if ($activeScriptText -match $legacyFunctionPattern) {
+        throw "Active script contains a legacy version-bound function name: $($activeScript.Name)"
+    }
+    if ($activeScriptText -match $legacyScriptsPattern) {
+        throw "Active script references the legacy scripts directory: $($activeScript.Name)"
+    }
+}
+if ((Test-Path -LiteralPath (Join-Path ".\scripts" $legacyMainCheckName)) -or (Test-Path -LiteralPath (Join-Path ".\scripts" $legacyDeployCheckName))) {
+    throw "A legacy version-bound active script filename still exists."
 }
 
 $appLineCount = (Get-Content -LiteralPath ".\frontend\src\App.jsx").Count
@@ -171,7 +232,7 @@ foreach ($serviceFile in $backendServiceFiles) {
     }
 }
 
-Invoke-V2Native $python -m py_compile `
+Invoke-ProjectNative $python -m py_compile `
     .\backend\ai_provider.py `
     .\backend\core\config.py `
     .\backend\core\payload_limits.py `
@@ -197,22 +258,29 @@ Invoke-V2Native $python -m py_compile `
     .\validate_question_bank.py
 
 $scriptFiles = @(
-    ".\v2\scripts\_common.ps1",
-    ".\v2\scripts\check_v2.ps1",
-    ".\v2\scripts\run_backend.ps1",
-    ".\v2\scripts\run_frontend.ps1",
-    ".\v2\scripts\run_local_stack.ps1",
-    ".\v2\scripts\start_https_tunnel.ps1",
-    ".\v2\scripts\check_local_preview.ps1",
-    ".\v2\scripts\check_mobile_qa_result.ps1",
-    ".\v2\scripts\check_git_ready.ps1",
-    ".\v2\scripts\stop_local_stack.ps1",
-    ".\v2\scripts\check_deployed_v2.ps1",
-    ".\v2\scripts\check_deploy_config.ps1",
-    ".\v2\scripts\prepare_public_deploy_bundle.ps1",
-    ".\v2\scripts\generate_admin_token.ps1",
-    ".\v2\scripts\sync_public_deploy_github.ps1"
+    ".\scripts\_common.ps1",
+    ".\scripts\check_project.ps1",
+    ".\scripts\run_backend.ps1",
+    ".\scripts\run_frontend.ps1",
+    ".\scripts\run_local_stack.ps1",
+    ".\scripts\start_https_tunnel.ps1",
+    ".\scripts\check_local_preview.ps1",
+    ".\scripts\check_mobile_qa_result.ps1",
+    ".\scripts\check_git_ready.ps1",
+    ".\scripts\stop_local_stack.ps1",
+    ".\scripts\check_deployed_app.ps1",
+    ".\scripts\check_deploy_config.ps1",
+    ".\scripts\prepare_public_deploy_bundle.ps1",
+    ".\scripts\generate_admin_token.ps1",
+    ".\scripts\sync_public_deploy_github.ps1"
 )
+$actualScriptFiles = Get-ChildItem -LiteralPath ".\scripts" -Filter "*.ps1" -File |
+    ForEach-Object { ".\scripts\$($_.Name)" } |
+    Sort-Object
+$scriptListDifference = Compare-Object -ReferenceObject ($scriptFiles | Sort-Object) -DifferenceObject $actualScriptFiles
+if ($scriptListDifference) {
+    throw "PowerShell script parse list does not cover the complete scripts directory: $($scriptListDifference | Out-String)"
+}
 foreach ($scriptFile in $scriptFiles) {
     $tokens = $null
     $parseErrors = $null
@@ -226,13 +294,13 @@ foreach ($scriptFile in $scriptFiles) {
     }
 }
 
-Invoke-V2Native $python .\validate_question_bank.py
-Invoke-V2Native $python -m backend.smoke_test
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deploy_config.ps1
+Invoke-ProjectNative $python .\validate_question_bank.py
+Invoke-ProjectNative $python -m backend.smoke_test
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_deploy_config.ps1
 
 Push-Location .\frontend
-Invoke-V2Native $pnpm run test:smoke
-Invoke-V2Native $pnpm run build
+Invoke-ProjectNative $pnpm run test:smoke
+Invoke-ProjectNative $pnpm run build
 Pop-Location
 
 $distIndex = Join-Path $repoRoot "frontend\dist\index.html"

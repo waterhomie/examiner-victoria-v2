@@ -11,10 +11,10 @@ function Resolve-RealPath {
     return $item.FullName
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 Set-Location -LiteralPath $repoRoot
 
-Write-Host "Checking Git/GitHub readiness for Examiner Victoria V2..." -ForegroundColor Cyan
+Write-Host "Checking Git/GitHub readiness for Examiner Victoria..." -ForegroundColor Cyan
 Write-Host "Project directory: $repoRoot"
 
 $gitTop = $null
@@ -38,7 +38,7 @@ if (-not $gitTop) {
     }
 
     Write-Host ""
-    Write-Host "Before pushing V2 to GitHub, copy this project into a valid clone or initialize Git intentionally."
+    Write-Host "Before pushing Examiner Victoria to GitHub, copy this project into a valid clone or initialize Git intentionally."
     Write-Host "Do not run destructive Git reset/checkout commands in this folder."
     exit 1
 }

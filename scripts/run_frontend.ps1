@@ -7,15 +7,15 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "_common.ps1")
 
-$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 $frontendRoot = Join-Path $repoRoot "frontend"
-$pnpm = Resolve-V2Pnpm
+$pnpm = Resolve-ProjectPnpm
 
 Write-Host "Examiner Victoria frontend" -ForegroundColor Cyan
 Write-Host "Frontend: $frontendRoot"
 
 Set-Location $frontendRoot
 if (-not $SkipInstall) {
-    Invoke-V2Native $pnpm install
+    Invoke-ProjectNative $pnpm install
 }
-Invoke-V2Native $pnpm exec vite --host 0.0.0.0 --port $Port
+Invoke-ProjectNative $pnpm exec vite --host 0.0.0.0 --port $Port

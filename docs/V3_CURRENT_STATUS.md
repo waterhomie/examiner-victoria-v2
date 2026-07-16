@@ -4,7 +4,7 @@
 
 ## 1. Status date
 
-This status was updated on **2026-07-13** after V3 promotion to `main`, the main-based CloudBase verification reported by the project owner, the V3 Beta tag and Pre-release, the GitHub repository rename, and retirement of the former integration branches.
+This status was updated on **2026-07-16** after V3 promotion to `main`, the main-based CloudBase verification reported by the project owner, the V3 Beta tag and Pre-release, the GitHub repository rename, Phase 1 runtime-path neutralization, and Phase 3 tooling/document neutralization.
 
 ## 2. Product stage
 
@@ -33,7 +33,7 @@ The current GitHub repository is `waterhomie/examiner-victoria`. Its former name
 
 The active React application is in top-level `frontend/`, and the active FastAPI application is in top-level `backend/`. The production entrypoint is `backend.app:app`, and FastAPI serves the build from `frontend/dist`. The canonical local worktree folder keeps its historical name.
 
-The root question-bank modules and `v2/scripts` remain in place. Phase 2 (question-bank module migration) and Phase 3 (script directory/name neutralization and active-document relocation) have not been implemented; the remaining `v2/` tree carries those compatibility assets plus maintained or frozen V2 documents.
+Current PowerShell tooling is in top-level `scripts/`, and current run/deployment guides are in `docs/`. The `v2/` directory now contains frozen historical evidence only. Phase 1 and Phase 3 are complete; Phase 2 question-bank module migration remains deferred, so the root question-bank files stay unchanged.
 
 ## 5. Current architecture
 
@@ -107,6 +107,8 @@ Provider credentials are configured only through the deployment secret store. Do
 - created tag and Pre-release `v3.0.0-beta.1`
 - renamed the GitHub repository to `waterhomie/examiner-victoria`
 - retired the merged feedback, release-consolidation, and V3 integration branches
+- completed Phase 1 runtime-path neutralization and Phase 3 script/active-document neutralization
+- retained the root question-bank modules unchanged while Phase 2 remains deferred
 
 ## 11. Testing status
 
@@ -177,7 +179,7 @@ The GitHub repository was renamed on 2026-07-13:
 - current Git remote and documentation links use the new repository name
 - GitHub may redirect former URLs for historical compatibility
 - local worktree folder names were not changed
-- active runtime code moved to `frontend/` and `backend/`; `v2/scripts`, root question-bank modules, and remaining `v2/` documents stay in place for later phases
+- active runtime and tooling use `frontend/`, `backend/`, and `scripts/`; current operating guides use `docs/`; `v2/` contains frozen historical evidence only; root question-bank modules remain pending the deferred Phase 2 decision
 
 ## 17. Documentation authority
 
@@ -199,6 +201,8 @@ When an older planning document conflicts with this file, this file takes preced
 - [Beta Access Test Log](V3_BETA_ACCESS_TEST_LOG.md) — access-test evidence, including Railway-era checks
 - [CloudBase Migration Plan](V3_CLOUDBASE_MIGRATION_PLAN.md) — migration record with active operational references
 - [Runtime Dependencies](V3_RUNTIME_DEPENDENCIES.md) — current provider and runtime dependency details
+- [Local Run Guide](RUN_LOCAL.md) — current local commands
+- [Deployment Guide](DEPLOYMENT.md) — current deployment contract and rollback context
 - [Runtime Diagnostics](V3_RUNTIME_DIAGNOSTICS.md) — diagnostics design and safety contract
 - [Build Version Diagnostics](V3_BUILD_VERSION_DIAGNOSTICS.md) — build identity fields and deployment inputs
 - [Manual Test Checklist](V3_MANUAL_TEST_CHECKLIST.md) — current manual acceptance checklist

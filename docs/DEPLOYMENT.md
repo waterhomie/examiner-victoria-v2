@@ -1,6 +1,6 @@
 # Examiner Victoria V3 Beta deployment
 
-> Active runtime source is in top-level `frontend/` and `backend/`. Compatibility scripts and this maintained deployment guide remain under `v2/` until a later phase. Current release facts are maintained in [V3 Current Status](../docs/V3_CURRENT_STATUS.md).
+> Active runtime source and tooling are in top-level `frontend/`, `backend/`, and `scripts/`. The `v2/` directory contains frozen historical evidence only. Current release facts are maintained in [V3 Current Status](V3_CURRENT_STATUS.md).
 
 The GitHub source repository is [`waterhomie/examiner-victoria`](https://github.com/waterhomie/examiner-victoria). Examiner Victoria uses one Docker container: Vite builds the React frontend, FastAPI serves the resulting static files, and the same HTTPS origin exposes `/api`. This deployment shape is supported on CloudBase Run and remains compatible with Railway.
 
@@ -35,7 +35,7 @@ Dockerfile
 .dockerignore
 railway.json
 render.yaml
-v2/scripts/check_deploy_config.ps1
+scripts/check_deploy_config.ps1
 ```
 
 The root Dockerfile builds `frontend` with pnpm, copies the React `dist` into the Python image, installs `backend/requirements.txt`, and starts the FastAPI application. The hosting platform supplies `PORT`; CloudBase currently expects `8080`.
@@ -52,7 +52,7 @@ https://your-public-domain/api/diagnostics/runtime
 
 Configure non-sensitive settings and secrets in the CloudBase console. Never commit real values or paste them into documentation.
 
-Core provider and safety variable names are documented in [V3 Runtime Dependencies](../docs/V3_RUNTIME_DEPENDENCIES.md). The Tencent TTS path uses names including:
+Core provider and safety variable names are documented in [V3 Runtime Dependencies](V3_RUNTIME_DEPENDENCIES.md). The Tencent TTS path uses names including:
 
 ```text
 TTS_PROVIDER
@@ -78,7 +78,7 @@ APP_SOURCE_BRANCH
 APP_VERSION
 ```
 
-See [Build Version Diagnostics](../docs/V3_BUILD_VERSION_DIAGNOSTICS.md) for safe placeholder examples.
+See [Build Version Diagnostics](V3_BUILD_VERSION_DIAGNOSTICS.md) for safe placeholder examples.
 
 Other backend settings include the existing LLM/STT provider variables, CORS, upload limits, answer/session limits, rate limits, TTS limits, and telemetry protection. Refer to the runtime dependency document and environment examples for names; do not copy real environment values into Git.
 
@@ -111,13 +111,13 @@ Before a human-triggered deployment:
 Run the repository deployment check before a hosting change:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deploy_config.ps1
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_deploy_config.ps1
 ```
 
 If Docker Desktop is available:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deploy_config.ps1 -BuildDockerImage
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_deploy_config.ps1 -BuildDockerImage
 ```
 
 The local full-stack preview is documented in [RUN_LOCAL.md](RUN_LOCAL.md).
@@ -127,12 +127,12 @@ The local full-stack preview is documented in [RUN_LOCAL.md](RUN_LOCAL.md).
 For the one-service architecture, use the same origin for frontend and backend:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\check_deployed_v2.ps1 `
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_deployed_app.ps1 `
   -BackendUrl "https://your-public-domain" `
   -FrontendUrl "https://your-public-domain"
 ```
 
-Despite the compatibility name, this helper validates the current one-service application. Use protected/admin checks only with explicit authorization, and never print the token.
+Use protected/admin checks only with explicit authorization, and never print the token.
 
 The expected read-only checks include the homepage, health, safe diagnostics, CORS behavior, question-bank metadata, and frontend HTML. Do not run paid-provider flows unless the task explicitly permits them.
 
@@ -166,7 +166,7 @@ Before using another platform, review domestic accessibility, HTTPS, filing and 
 
 ## Phone verification order
 
-Use the maintained [V3 Manual Test Checklist](../docs/V3_MANUAL_TEST_CHECKLIST.md). A minimal controlled sequence is:
+Use the maintained [V3 Manual Test Checklist](V3_MANUAL_TEST_CHECKLIST.md). A minimal controlled sequence is:
 
 1. Open the HTTPS page and run System check.
 2. Confirm secure context, storage, microphone availability, recording, and local playback.

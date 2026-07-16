@@ -11,11 +11,13 @@
 
 The local folder names are historical and were not renamed with the GitHub repository. Do not infer repository or product version from a local folder name.
 
+Do not create new version-numbered active source or tooling roots. A future product version must continue using `frontend/`, `backend/`, and `scripts/`; do not create a new `v4/` runtime tree.
+
 ## Product and directory status
 
 Examiner Victoria V3 Beta is the current `main` product line. Active React code is in `frontend/`; active FastAPI code is in `backend/`; the runtime entrypoint is `backend.app:app`; and production static files are built into `frontend/dist`.
 
-The root question-bank modules and `v2/scripts` are intentionally retained for later phases. The remaining `v2/` tree contains compatibility scripts, maintained or historical documents, and frozen V2 evidence. Do not perform the deferred Phase 2 or Phase 3 moves during ordinary maintenance.
+Current PowerShell tooling is in `scripts/`, and current operating documents are in `docs/`. The `v2/` tree contains frozen V2 historical evidence only and must not be treated as current runtime source or tooling. Phase 1 and Phase 3 are complete; Phase 2 question-bank relocation remains deferred and must not be performed during ordinary maintenance.
 
 V2 remains preserved by tag `v2.0.0`, its frozen commit, QA records, and Railway historical reference. `main` no longer represents the V2 branch.
 
@@ -65,7 +67,7 @@ Before deployment-related work, inspect:
 - `docs/V3_CURRENT_STATUS.md`
 - `docs/V3_CLOUDBASE_MIGRATION_PLAN.md`
 - `docs/V3_RUNTIME_DEPENDENCIES.md`
-- `v2/DEPLOYMENT.md`
+- `docs/DEPLOYMENT.md`
 - the actual CloudBase version and source reported by the user
 
 Do not assume Railway is the current domestic deployment. Railway V2 is a frozen historical/rollback reference, and Railway V3 is an overseas test baseline.
@@ -79,7 +81,7 @@ Stop and request confirmation before:
 - changing CloudBase console configuration or source branch
 - renaming the repository again or changing the default branch
 - changing Git remotes outside an explicitly authorized rename task
-- moving root question-bank modules, `v2/scripts`, remaining `v2/` documents, or local worktree folders
+- moving root question-bank modules or local worktree folders
 - deleting a Release or tag
 - deleting a long-lived or unverified branch
 - modifying Prompt, question bank, provider behavior, scoring, or core Practice/Mock flow
@@ -95,6 +97,12 @@ For documentation work, at minimum:
 - scan changed files for accidental secrets and personal data
 - confirm that only intended files changed
 
-For code work, use the relevant compile, smoke, build, and focused regression tests documented by the repository.
+For code work, the recommended full check is:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_project.ps1 -SkipInstall
+```
+
+Use the relevant compile, smoke, build, and focused regression tests documented by the repository. Do not call tools from the historical `v2/` directory.
 
 Create commits and PRs only when authorized. Never auto-merge unless the user explicitly requests that exact action.

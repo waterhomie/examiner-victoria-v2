@@ -156,7 +156,7 @@ The local stack is intentionally close to production:
 build React frontend -> FastAPI serves frontend dist and /api on one port
 ```
 
-Use the script in `v2/scripts/run_local_stack.ps1`. The main local URL is:
+Use the script in `scripts/run_local_stack.ps1`. The main local URL is:
 
 ```text
 http://127.0.0.1:5174

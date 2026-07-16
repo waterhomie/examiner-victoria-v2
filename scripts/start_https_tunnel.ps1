@@ -60,34 +60,44 @@ function Stop-RecordedTunnel {
     Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 $tmpRoot = Join-Path $repoRoot "tmp"
 if (-not (Test-Path -LiteralPath $tmpRoot)) {
     New-Item -ItemType Directory -Path $tmpRoot | Out-Null
 }
 
-$pidFile = Join-Path $tmpRoot "v2_tunnel_pid.txt"
-$urlFile = Join-Path $tmpRoot "v2_tunnel_url.txt"
-$outLog = Join-Path $tmpRoot "v2_cloudflared.out.log"
-$errLog = Join-Path $tmpRoot "v2_cloudflared.err.log"
+$pidFile = Join-Path $tmpRoot "tunnel_pid.txt"
+$urlFile = Join-Path $tmpRoot "tunnel_url.txt"
+$outLog = Join-Path $tmpRoot "cloudflared.out.log"
+$errLog = Join-Path $tmpRoot "cloudflared.err.log"
+$legacyPidFile = Join-Path $tmpRoot ("v2_" + "tunnel_pid.txt")
+$legacyUrlFile = Join-Path $tmpRoot ("v2_" + "tunnel_url.txt")
 $appUrl = "http://127.0.0.1:$Port"
 $healthUrl = "$appUrl/api/health"
 
 if ($Restart) {
     Stop-RecordedTunnel -PidFile $pidFile
-    Remove-Item -LiteralPath $urlFile -Force -ErrorAction SilentlyContinue
+    Stop-RecordedTunnel -PidFile $legacyPidFile
+    Remove-Item -LiteralPath $urlFile, $legacyUrlFile -Force -ErrorAction SilentlyContinue
 }
 
-if (Test-Path -LiteralPath $pidFile) {
-    $pidText = Get-Content -LiteralPath $pidFile -Raw -ErrorAction SilentlyContinue
+$existingPidFile = $pidFile
+$existingUrlFile = $urlFile
+if ((-not (Test-Path -LiteralPath $existingPidFile)) -and (Test-Path -LiteralPath $legacyPidFile)) {
+    $existingPidFile = $legacyPidFile
+    $existingUrlFile = $legacyUrlFile
+}
+
+if (Test-Path -LiteralPath $existingPidFile) {
+    $pidText = Get-Content -LiteralPath $existingPidFile -Raw -ErrorAction SilentlyContinue
     if ($pidText -match "(\d+)") {
         $pidValue = [int]$Matches[1]
         $existing = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
         if ($existing) {
             Write-Host "An HTTPS tunnel is already running with PID $pidValue." -ForegroundColor Yellow
             Write-Host "Use -Restart to replace it."
-            if (Test-Path -LiteralPath $urlFile) {
-                $savedUrl = Get-Content -LiteralPath $urlFile -Raw -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $existingUrlFile) {
+                $savedUrl = Get-Content -LiteralPath $existingUrlFile -Raw -ErrorAction SilentlyContinue
                 if ($savedUrl) {
                     Write-Host "HTTPS phone URL:" -ForegroundColor Green
                     Write-Output $savedUrl.Trim()
@@ -98,19 +108,19 @@ if (Test-Path -LiteralPath $pidFile) {
             exit 0
         }
     }
-    Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $existingPidFile -Force -ErrorAction SilentlyContinue
 }
 
 try {
     Invoke-RestMethod -Uri $healthUrl -TimeoutSec 4 | Out-Null
 } catch {
-    throw "Local V2 app is not responding at $healthUrl. Start it first with .\v2\scripts\run_local_stack.ps1 -BackendPort 8010 -FrontendPort 5174 -SkipInstall"
+    throw "Local app is not responding at $healthUrl. Start it first with .\scripts\run_local_stack.ps1 -BackendPort 8010 -FrontendPort 5174 -SkipInstall"
 }
 
 $cloudflared = Resolve-Cloudflared -ExplicitPath $CloudflaredPath -RepoRoot $repoRoot
 Remove-Item -LiteralPath $outLog, $errLog -Force -ErrorAction SilentlyContinue
 
-Write-Host "Starting HTTPS tunnel for Examiner Victoria V2..." -ForegroundColor Cyan
+Write-Host "Starting HTTPS tunnel for Examiner Victoria..." -ForegroundColor Cyan
 Write-Host "Local app: $appUrl"
 Write-Host "cloudflared: $cloudflared"
 Write-Host "Protocol: $Protocol"
@@ -167,4 +177,4 @@ Write-Host "HTTPS phone URL:" -ForegroundColor Green
 Write-Output $publicUrl
 Write-Host ""
 Write-Host "Use this on iPhone Safari or WeChat for microphone testing."
-Write-Host "Stop it with: .\v2\scripts\stop_local_stack.ps1"
+Write-Host "Stop it with: .\scripts\stop_local_stack.ps1"
