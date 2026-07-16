@@ -1,13 +1,13 @@
 # Local Run Guide
 
-> Active source is in `frontend/` and `backend/`; the compatibility launch scripts intentionally remain in `v2/scripts` during Phase 1.
+> Current source and tooling live in `frontend/`, `backend/`, and `scripts/`. The `v2/` directory contains frozen historical evidence only.
 
 ## Start
 
 From the project root:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\run_local_stack.ps1 -BackendPort 8010 -FrontendPort 5174 -SkipInstall
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\run_local_stack.ps1 -BackendPort 8010 -FrontendPort 5174 -SkipInstall
 ```
 
 The app now runs as a single fullstack service:
@@ -23,7 +23,7 @@ Phone:    http://192.168.x.x:5174
 ## Stop
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\stop_local_stack.ps1 -Ports "8010,5174"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\stop_local_stack.ps1 -Ports "8010,5174"
 ```
 
 ## Why this changed
@@ -44,6 +44,32 @@ Build React dist -> FastAPI serves frontend dist and /api on one port
 
 This is closer to deployment and much easier to debug.
 
+## Dependencies and environment
+
+The current local stack uses Python/FastAPI from `backend/` and Node.js/pnpm/Vite from `frontend/`. Reuse existing repository-local dependencies where possible; do not install project packages globally.
+
+Private backend settings belong in the ignored file:
+
+```text
+backend/.env
+```
+
+Variable-name examples are committed in `backend/.env.example` and `frontend/.env.example`. Never commit, print, or paste real API keys, tokens, credentials, or `.env` values.
+
+For separate debugging, use:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\run_backend.ps1 -Port 8010 -SkipInstall
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\run_frontend.ps1 -Port 5174 -SkipInstall
+```
+
+Run the complete current project check from the repository root:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_project.ps1 -SkipInstall
+```
+
+The automated checks use deterministic provider stubs and must not call real LLM, STT, or TTS services.
 ## iPhone microphone note
 
 The local LAN URL is useful for layout and text testing. iPhone Safari still requires HTTPS before it can reliably request microphone access, so voice recording on phone needs an HTTPS tunnel or public deployment.
@@ -53,7 +79,7 @@ The local LAN URL is useful for layout and text testing. iPhone Safari still req
 When the local app is already running, start a temporary Cloudflare HTTPS tunnel:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\start_https_tunnel.ps1 -Port 5174 -Restart
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\start_https_tunnel.ps1 -Port 5174 -Restart
 ```
 
 The script prints a URL like:
@@ -69,5 +95,5 @@ the URL expires, run the command again.
 Stop both the local app and tunnel with:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\v2\scripts\stop_local_stack.ps1 -Ports "8010,5174"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\stop_local_stack.ps1 -Ports "8010,5174"
 ```

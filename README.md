@@ -16,7 +16,7 @@ V3 Beta is the current product line on the default branch, `main`. Five anonymou
 - Current-state reference: [V3 Current Status](docs/V3_CURRENT_STATUS.md)
 - Frozen V2 Railway reference: [Examiner Victoria V2](https://examiner-victoria-v2-production.up.railway.app)
 
-The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `waterhomie/examiner-victoria` on 2026-07-13. The canonical local worktree folder keeps its historical name. The active runtime now lives in top-level `frontend/` and `backend/`; `v2/` remains for compatibility scripts, maintained or historical documents, and frozen V2 evidence.
+The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `waterhomie/examiner-victoria` on 2026-07-13. The canonical local worktree folder keeps its historical name. The active runtime and tooling now live in top-level `frontend/`, `backend/`, and `scripts/`. Current operating guides live in `docs/`; `v2/` contains frozen V2 historical evidence only.
 
 ## What V3 Beta includes
 
@@ -41,9 +41,9 @@ The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `wat
 - frontend-held sessions passed through API requests
 - no account system or application database
 
-Active React code lives in `frontend/`, active FastAPI code lives in `backend/`, and the production entrypoint is `backend.app:app`. The built frontend is served from `frontend/dist`.
+Active React code lives in `frontend/`, active FastAPI code lives in `backend/`, and current PowerShell tooling lives in `scripts/`. The production entrypoint is `backend.app:app`, and the built frontend is served from `frontend/dist`.
 
-Phase 1 does not move the root question-bank modules or `v2/scripts`. Phase 2 (question-bank modules) and Phase 3 (scripts, PowerShell names, and active-document relocation) have not been implemented.
+Phase 1 (runtime paths) and Phase 3 (scripts and active documents) are complete. Phase 2 question-bank relocation remains deferred pending a separate cost-benefit decision; the three root question-bank files remain unchanged.
 
 ## Deployment and providers
 
@@ -85,6 +85,8 @@ V3 Beta intentionally does not add accounts, cross-device identity, a persistent
 - [Runtime Dependencies](docs/V3_RUNTIME_DEPENDENCIES.md) — provider and environment-variable contract
 - [Runtime Diagnostics](docs/V3_RUNTIME_DIAGNOSTICS.md) — non-sensitive diagnostics contract
 - [Manual Test Checklist](docs/V3_MANUAL_TEST_CHECKLIST.md) — manual acceptance coverage
+- [Local Run Guide](docs/RUN_LOCAL.md) — current local commands and safe environment boundaries
+- [Deployment Guide](docs/DEPLOYMENT.md) — current CloudBase/container contract and rollback context
 - [Development Workflow](docs/DEVELOPMENT_WORKFLOW.md) — branch, release, and rollback workflow
 - [AGENTS.md](AGENTS.md) — project-level AI collaboration rules
 

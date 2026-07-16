@@ -16,7 +16,7 @@ function Normalize-Url {
 $backend = Normalize-Url $BackendUrl
 $frontend = Normalize-Url $FrontendUrl
 
-Write-Host "Checking Examiner Victoria V2 deployment..." -ForegroundColor Cyan
+Write-Host "Checking Examiner Victoria deployment..." -ForegroundColor Cyan
 Write-Host "Backend:  $backend"
 Write-Host "Frontend: $frontend"
 

@@ -14,10 +14,10 @@ function Resolve-RealPath {
     return $item.FullName
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 Set-Location -LiteralPath $repoRoot
 
-Write-Host "Checking Examiner Victoria V2 mobile QA result..." -ForegroundColor Cyan
+Write-Host "Checking Examiner Victoria mobile QA result..." -ForegroundColor Cyan
 
 if (-not (Test-Path -LiteralPath $ResultPath)) {
     throw "Mobile QA result is missing. Copy v2\MOBILE_QA_RESULT.template.md to v2\MOBILE_QA_RESULT.md after real-device testing, then fill it in."
@@ -50,7 +50,7 @@ $finalDecision = $checked[0]
 Write-Host "Mobile QA final decision: $finalDecision"
 
 if ($finalDecision -eq "Fail") {
-    throw "Mobile QA failed. Do not share or replace the Streamlit fallback with V2 yet."
+    throw "Mobile QA failed. Do not share the current application yet."
 }
 
 if ($finalDecision -eq "Partial" -and -not $AllowPartial) {

@@ -2,6 +2,8 @@
 
 > Phase 0 audit and design only. Baseline: `main` commit `3b1c4f3916491e8b2320ac1ae64e1fb8a68b9cbd` (PR #22 merge), audited on 2026-07-15. This document does not move source files or change application behavior.
 
+> **Implementation status (2026-07-16):** Phase 0 is complete; Phase 1 was completed by PR #24 and merge commit `732270eb698b1f952ec90c4d3abd9ae0308dd548`; Phase 3 is implemented by the current change. The approved Phase 3 scope moved all 15 scripts and the two current run/deployment guides. The remaining V2 API, checklist, mobile QA, template, and completion-audit files were classified as frozen historical evidence and remain under `v2/`. Phase 2 question-bank relocation is deferred pending a separate cost-benefit decision.
+
 ## 1. Executive decision
 
 **Recommendation: conditional GO, now, but not as one implementation PR.** The active application should move to version-neutral top-level `frontend/`, `backend/`, and `scripts/` paths before more product work deepens the current coupling. Begin only after this Phase 0 plan is reviewed and merged, when no competing feature branch is changing Docker, backend imports, scripts, or deployment documentation.
@@ -18,7 +20,7 @@ The migration must not change the API endpoints, request/response schemas, Pract
 
 ## 2. Audit scope and reproducible counts
 
-The audit used tracked text at the baseline commit. Generated files, `node_modules`, ignored `.env` files, Git history, and cloud-console state were not read. Relevant current-state references include [README](../README.md), [AGENTS](../AGENTS.md), [V3 Current Status](V3_CURRENT_STATUS.md), [Dockerfile](../Dockerfile), [backend config](../v2/backend/core/config.py), and [the current project check](../v2/scripts/check_v2.ps1).
+The audit used tracked text at the baseline commit. Generated files, `node_modules`, ignored `.env` files, Git history, and cloud-console state were not read. Relevant current-state references include [README](../README.md), [AGENTS](../AGENTS.md), [V3 Current Status](V3_CURRENT_STATUS.md), [Dockerfile](../Dockerfile), [backend config](../backend/core/config.py), and [the current project check](../scripts/check_project.ps1).
 
 Counting definitions:
 
@@ -686,7 +688,7 @@ historical PR and commit references
 
 ## 15. Phased implementation plan
 
-### Phase 1 — core directory neutralization
+### Phase 1 — core directory neutralization (completed)
 
 Scope:
 
@@ -702,11 +704,11 @@ Scope:
 
 Gate: no active runtime/search reference may require `v2/frontend`, `v2/backend`, or `v2.backend`; historical documents are allowlisted.
 
-### Phase 2 — question bank and data organization
+### Phase 2 — question bank and data organization (deferred)
 
 Start only after Phase 1 CloudBase acceptance. Move the two Python bank modules into `backend/question_bank/`, keep the validator at root, and update imports/copy/check rules. Verify identical question-bank counts and deterministic practice options. If there is no concrete maintenance benefit after Phase 1, Phase 2 may remain deferred indefinitely.
 
-### Phase 3 — scripts, tests, and active documentation
+### Phase 3 — scripts, tests, and active documentation (implemented by this change)
 
 1. Stop any old local stack/tunnel.
 2. Move all 15 scripts to root `scripts/`.
@@ -847,10 +849,13 @@ NO-GO if:
 - no tag, Release, or historical-record rewrite;
 - no runtime migration in this audit PR.
 
-## 22. Recommended next Codex task
+## 22. Current structural next step
 
-After this document PR is reviewed and merged, open a new task titled:
+Phase 1 and Phase 3 are complete. Phase 2 question-bank relocation remains optional and deferred; it must not begin without a separate cost-benefit decision and explicit implementation authorization.
 
-> **Examiner Victoria Phase 1: move frontend/backend to version-neutral roots**
+Until that decision changes:
 
-That task should implement only Phase 1, use the exact 77-file frontend/backend move map above, update the explicitly listed runtime/deployment consumers, preserve root question-bank modules and the legacy localStorage key, run the full Phase 1 test matrix including a Docker container smoke, and open a Draft PR to `main`. It must stop before CloudBase deployment; deployment remains a separately authorized human step.
+- keep `question_bank.py`, `pdf_recall_question_bank.py`, and `validate_question_bank.py` at repository root;
+- use the current `frontend/`, `backend/`, `scripts/`, and `docs/` paths;
+- treat `v2/` as frozen historical evidence only;
+- do not create a new version-numbered active source tree for a future release.

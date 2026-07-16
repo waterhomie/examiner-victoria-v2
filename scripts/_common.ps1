@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-function Resolve-V2Python {
+function Resolve-ProjectPython {
     if ($env:PYTHON) {
         return $env:PYTHON
     }
@@ -18,7 +18,7 @@ function Resolve-V2Python {
     throw "Python was not found. Install Python 3.12+ or set `$env:PYTHON to python.exe."
 }
 
-function Resolve-V2Pnpm {
+function Resolve-ProjectPnpm {
     if ($env:PNPM) {
         return $env:PNPM
     }
@@ -46,16 +46,19 @@ function Resolve-V2Pnpm {
     throw "pnpm was not found. Install Node.js + pnpm, or set `$env:PNPM to pnpm.cmd."
 }
 
-function Add-V2PythonPath {
+function Add-ProjectPythonPath {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot
     )
 
     $parts = @()
-    $localDeps = Join-Path $RepoRoot "tmp\v2_backend_deps"
+    $localDeps = Join-Path $RepoRoot "tmp\backend_deps"
+    $legacyLocalDeps = Join-Path $RepoRoot ("tmp\" + "v2_backend_deps")
     if (Test-Path -LiteralPath $localDeps) {
         $parts += $localDeps
+    } elseif (Test-Path -LiteralPath $legacyLocalDeps) {
+        $parts += $legacyLocalDeps
     }
     $parts += $RepoRoot
 
@@ -71,7 +74,7 @@ function Add-V2PythonPath {
     $env:PYTHONPATH = $parts -join ';'
 }
 
-function Invoke-V2Native {
+function Invoke-ProjectNative {
     param(
         [Parameter(Mandatory = $true)]
         [string]$FilePath,

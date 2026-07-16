@@ -37,13 +37,13 @@ function Get-LanIPv4Address {
     return ($candidates | Select-Object -First 1).IPAddress
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 $frontendRoot = Join-Path $repoRoot "frontend"
 $frontendDist = Join-Path $frontendRoot "dist"
 $tmpRoot = Join-Path $repoRoot "tmp"
 $appPort = $FrontendPort
-$python = Resolve-V2Python
-$pnpm = Resolve-V2Pnpm
+$python = Resolve-ProjectPython
+$pnpm = Resolve-ProjectPnpm
 $nodeBin = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
 $node = Join-Path $nodeBin "node.exe"
 $viteCli = Join-Path $frontendRoot "node_modules\vite\bin\vite.js"
@@ -83,9 +83,9 @@ if ($lanIp) {
 if (-not $SkipInstall) {
     Write-Host "Installing backend/frontend dependencies..." -ForegroundColor Cyan
     Set-Location -LiteralPath $repoRoot
-    Invoke-V2Native $python -m pip install -r .\backend\requirements.txt
+    Invoke-ProjectNative $python -m pip install -r .\backend\requirements.txt
     Set-Location -LiteralPath $frontendRoot
-    Invoke-V2Native $pnpm install
+    Invoke-ProjectNative $pnpm install
 }
 
 if (-not (Test-Path -LiteralPath $viteCli)) {
@@ -95,20 +95,23 @@ if (-not (Test-Path -LiteralPath $viteCli)) {
 Write-Host "Building frontend bundle..." -ForegroundColor Cyan
 Set-Location -LiteralPath $frontendRoot
 $env:VITE_API_BASE = ""
-Invoke-V2Native $node $viteCli build
+Invoke-ProjectNative $node $viteCli build
 
-$backendOut = Join-Path $tmpRoot "v2_backend.out.log"
-$backendErr = Join-Path $tmpRoot "v2_backend.err.log"
-$frontendOut = Join-Path $tmpRoot "v2_frontend.out.log"
-$frontendErr = Join-Path $tmpRoot "v2_frontend.err.log"
-$pidFile = Join-Path $tmpRoot "v2_server_pids.txt"
+$backendOut = Join-Path $tmpRoot "backend.out.log"
+$backendErr = Join-Path $tmpRoot "backend.err.log"
+$frontendOut = Join-Path $tmpRoot "frontend.out.log"
+$frontendErr = Join-Path $tmpRoot "frontend.err.log"
+$pidFile = Join-Path $tmpRoot "server_pids.txt"
 
 Remove-Item -LiteralPath $backendOut, $backendErr, $frontendOut, $frontendErr -Force -ErrorAction SilentlyContinue
 
-$localDeps = Join-Path $tmpRoot "v2_backend_deps"
+$localDeps = Join-Path $tmpRoot "backend_deps"
+$legacyLocalDeps = Join-Path $tmpRoot ("v2_" + "backend_deps")
 $pythonPathParts = @($repoRoot)
 if (Test-Path -LiteralPath $localDeps) {
     $pythonPathParts = @($localDeps) + $pythonPathParts
+} elseif (Test-Path -LiteralPath $legacyLocalDeps) {
+    $pythonPathParts = @($legacyLocalDeps) + $pythonPathParts
 }
 $pythonPath = $pythonPathParts -join ";"
 

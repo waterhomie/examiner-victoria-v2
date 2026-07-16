@@ -100,9 +100,10 @@ function Check-CoreApiFlow {
     Write-Host "$Name core API flow: session -> identity answer -> Part 1" -ForegroundColor Green
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 $tmpRoot = Join-Path $repoRoot "tmp"
-$savedTunnelFile = Join-Path $tmpRoot "v2_tunnel_url.txt"
+$savedTunnelFile = Join-Path $tmpRoot "tunnel_url.txt"
+$legacySavedTunnelFile = Join-Path $tmpRoot ("v2_" + "tunnel_url.txt")
 
 $localUrl = Normalize-Url "http://127.0.0.1:$Port"
 $targets = @(
@@ -110,6 +111,9 @@ $targets = @(
 )
 
 if ($UseSavedTunnel) {
+    if ((-not (Test-Path -LiteralPath $savedTunnelFile)) -and (Test-Path -LiteralPath $legacySavedTunnelFile)) {
+        $savedTunnelFile = $legacySavedTunnelFile
+    }
     if (-not (Test-Path -LiteralPath $savedTunnelFile)) {
         throw "No saved tunnel URL found at $savedTunnelFile. Run start_https_tunnel.ps1 first."
     }
@@ -120,7 +124,7 @@ if ($TunnelUrl) {
     $targets += [pscustomobject]@{ Name = "HTTPS tunnel"; Url = Normalize-Url $TunnelUrl }
 }
 
-Write-Host "Checking Examiner Victoria V2 local preview..." -ForegroundColor Cyan
+Write-Host "Checking Examiner Victoria local preview..." -ForegroundColor Cyan
 foreach ($target in $targets) {
     Write-Host ""
     Write-Host "$($target.Name): $($target.Url)" -ForegroundColor Cyan

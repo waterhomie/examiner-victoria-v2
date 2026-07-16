@@ -1,8 +1,8 @@
 param(
     [switch]$Push,
-    [string]$Repository = "waterhomie/examiner-victoria-v2",
+    [string]$Repository = "waterhomie/examiner-victoria",
     [string]$Branch = "main",
-    [string]$CommitMessage = "Update Examiner Victoria V2 public deploy bundle",
+    [string]$CommitMessage = "Update Examiner Victoria public deploy bundle",
     [string]$ClonePath = ""
 )
 
@@ -29,7 +29,7 @@ function Test-IsSafeChildPath {
     return $child -eq $parent -or $child.StartsWith("$parent\", [System.StringComparison]::OrdinalIgnoreCase)
 }
 
-function Resolve-V2Git {
+function Resolve-ProjectGit {
     $bundledGit = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\cmd\git.exe"
     if (Test-Path -LiteralPath $bundledGit) {
         return $bundledGit
@@ -41,8 +41,8 @@ function Resolve-V2Git {
     throw "git was not found. Install Git or use the bundled Codex runtime."
 }
 
-function Resolve-V2Gh {
-    $localGh = Join-Path (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")) ".tools\gh\bin\gh.exe"
+function Resolve-ProjectGh {
+    $localGh = Join-Path (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")) ".tools\gh\bin\gh.exe"
     if (Test-Path -LiteralPath $localGh) {
         return $localGh
     }
@@ -53,10 +53,10 @@ function Resolve-V2Gh {
     throw "GitHub CLI was not found. Install gh or run .\.tools\gh\bin\gh.exe auth login first."
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 $tmpRoot = Join-Path $repoRoot "tmp"
-$stagingRoot = Join-Path $tmpRoot "examiner-victoria-v2-deploy-bundle"
-$outputZip = Join-Path $tmpRoot "examiner-victoria-v2-deploy-bundle.zip"
+$stagingRoot = Join-Path $tmpRoot "examiner-victoria-deploy-bundle"
+$outputZip = Join-Path $tmpRoot "examiner-victoria-deploy-bundle.zip"
 $prepareScript = Join-Path $PSScriptRoot "prepare_public_deploy_bundle.ps1"
 
 Write-Host "Preparing public deployment bundle..." -ForegroundColor Cyan
@@ -81,8 +81,8 @@ if (-not $Push) {
     return
 }
 
-$git = Resolve-V2Git
-$gh = Resolve-V2Gh
+$git = Resolve-ProjectGit
+$gh = Resolve-ProjectGh
 
 & $gh auth status
 if ($LASTEXITCODE -ne 0) {
@@ -90,7 +90,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not $ClonePath) {
-    $ClonePath = Join-Path $tmpRoot "github-sync-examiner-victoria-v2"
+    $ClonePath = Join-Path $tmpRoot "github-sync-examiner-victoria"
 }
 $cloneFull = [System.IO.Path]::GetFullPath($ClonePath)
 if (-not (Test-IsSafeChildPath -ParentPath $tmpRoot -ChildPath $cloneFull)) {

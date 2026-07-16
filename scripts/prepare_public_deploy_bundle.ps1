@@ -41,6 +41,7 @@ function Test-ShouldIncludeBundlePath {
         "validate_question_bank.py",
         "backend",
         "frontend",
+        "scripts",
         "v2"
     )
     if (-not ($allowedTopLevel -contains $topLevel)) {
@@ -67,14 +68,14 @@ function Test-ShouldIncludeBundlePath {
     return $true
 }
 
-$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..\..")
+$repoRoot = Resolve-RealPath (Join-Path $PSScriptRoot "..")
 $tmpRoot = Join-Path $repoRoot "tmp"
 if (-not (Test-Path -LiteralPath $tmpRoot)) {
     New-Item -ItemType Directory -Path $tmpRoot | Out-Null
 }
 
 if (-not $OutputZip) {
-    $OutputZip = Join-Path $tmpRoot "examiner-victoria-v2-deploy-bundle.zip"
+    $OutputZip = Join-Path $tmpRoot "examiner-victoria-deploy-bundle.zip"
 }
 
 $outputZipFull = if ([System.IO.Path]::IsPathRooted($OutputZip)) {
@@ -86,7 +87,7 @@ if (-not (Test-IsSafeChildPath -ParentPath $repoRoot -ChildPath $outputZipFull))
     throw "OutputZip must be inside the project workspace: $repoRoot"
 }
 
-$stagingRoot = Join-Path $tmpRoot "examiner-victoria-v2-deploy-bundle"
+$stagingRoot = Join-Path $tmpRoot "examiner-victoria-deploy-bundle"
 $stagingFull = [System.IO.Path]::GetFullPath($stagingRoot)
 $tmpFull = [System.IO.Path]::GetFullPath($tmpRoot)
 if (-not (Test-IsSafeChildPath -ParentPath $tmpFull -ChildPath $stagingFull)) {
