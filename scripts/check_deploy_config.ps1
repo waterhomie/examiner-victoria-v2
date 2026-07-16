@@ -24,6 +24,9 @@ $requiredFiles = @(
     ".\scripts\sync_public_deploy_github.ps1",
     ".\backend\.env.example",
     ".\backend\requirements.txt",
+    ".\backend\question_bank\__init__.py",
+    ".\backend\question_bank\catalog.py",
+    ".\backend\question_bank\pdf_recall.py",
     ".\frontend\package.json",
     ".\frontend\pnpm-lock.yaml"
 )
@@ -40,12 +43,18 @@ $requiredDockerMarkers = @(
     "pnpm run build",
     "FROM python:",
     "FRONTEND_DIST=/app/frontend/dist",
-    "question_bank.py",
+    "COPY backend ./backend",
     "uvicorn backend.app:app"
 )
 foreach ($marker in $requiredDockerMarkers) {
     if (-not $dockerfile.Contains($marker)) {
         throw "Dockerfile is missing expected marker: $marker"
+    }
+}
+
+foreach ($legacyMarker in @("COPY question_bank.py", "pdf_recall_question_bank.py", "validate_question_bank.py ./")) {
+    if ($dockerfile.Contains($legacyMarker)) {
+        throw "Dockerfile still contains a legacy root question-bank copy marker: $legacyMarker"
     }
 }
 

@@ -1,20 +1,25 @@
-"""Lightweight sanity checks for the IELTS Victoria question bank.
+"""Lightweight sanity checks for the Examiner Victoria backend question bank.
 
 Run with:
     python validate_question_bank.py
 """
 
 from collections import Counter
+from importlib import import_module
+from pathlib import Path
 
-from question_bank import (
+from backend.question_bank import (
     EXTRA_CUE_CARDS,
     PART1_SECONDARY_TOPICS,
     PART1_STUDY_QUESTIONS,
     PART1_WORK_QUESTIONS,
+    PDF_CUE_CARDS,
+    PDF_PART1_SECONDARY_TOPICS,
 )
 
 APP_BUILT_IN_CUE_CARD_COUNT = 3
 APP_BUILT_IN_PART3_REFERENCE_COUNT = 12
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 def require(condition, message):
@@ -23,6 +28,29 @@ def require(condition, message):
 
 
 def main():
+    catalog_module = import_module("backend.question_bank.catalog")
+    pdf_recall_module = import_module("backend.question_bank.pdf_recall")
+    require(
+        catalog_module.EXTRA_CUE_CARDS is EXTRA_CUE_CARDS,
+        "The package catalog export is not stable.",
+    )
+    require(
+        pdf_recall_module.PDF_CUE_CARDS is PDF_CUE_CARDS,
+        "The package PDF recall export is not stable.",
+    )
+    require(
+        PART1_SECONDARY_TOPICS is PDF_PART1_SECONDARY_TOPICS,
+        "Part 1 secondary topic exports are inconsistent.",
+    )
+    require(
+        not (PROJECT_ROOT / "question_bank.py").exists(),
+        "The legacy root question_bank.py module must not exist.",
+    )
+    require(
+        not (PROJECT_ROOT / "pdf_recall_question_bank.py").exists(),
+        "The legacy root pdf_recall_question_bank.py module must not exist.",
+    )
+
     part1_secondary_count = sum(
         len(topic.get("questions", [])) for topic in PART1_SECONDARY_TOPICS
     )

@@ -17,7 +17,7 @@ Do not create new version-numbered active source or tooling roots. A future prod
 
 Examiner Victoria V3 Beta is the current `main` product line. Active React code is in `frontend/`; active FastAPI code is in `backend/`; the runtime entrypoint is `backend.app:app`; and production static files are built into `frontend/dist`.
 
-Current PowerShell tooling is in `scripts/`, and current operating documents are in `docs/`. The `v2/` tree contains frozen V2 historical evidence only and must not be treated as current runtime source or tooling. Phase 1 and Phase 3 are complete; Phase 2 question-bank relocation remains deferred and must not be performed during ordinary maintenance.
+Current PowerShell tooling is in `scripts/`, current operating documents are in `docs/`, and question-bank data is packaged under `backend/question_bank/`. The root `validate_question_bank.py` remains the stable project validation entry. The `v2/` tree contains frozen V2 historical evidence only and must not be treated as current runtime source or tooling. Phase 0, Phase 1, Phase 3, and Phase 2 are complete; no further repository-structure refactor is currently planned.
 
 V2 remains preserved by tag `v2.0.0`, its frozen commit, QA records, and Railway historical reference. `main` no longer represents the V2 branch.
 
@@ -81,7 +81,7 @@ Stop and request confirmation before:
 - changing CloudBase console configuration or source branch
 - renaming the repository again or changing the default branch
 - changing Git remotes outside an explicitly authorized rename task
-- moving root question-bank modules or local worktree folders
+- moving local worktree folders
 - deleting a Release or tag
 - deleting a long-lived or unverified branch
 - modifying Prompt, question bank, provider behavior, scoring, or core Practice/Mock flow

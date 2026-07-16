@@ -38,7 +38,7 @@ render.yaml
 scripts/check_deploy_config.ps1
 ```
 
-The root Dockerfile builds `frontend` with pnpm, copies the React `dist` into the Python image, installs `backend/requirements.txt`, and starts the FastAPI application. The hosting platform supplies `PORT`; CloudBase currently expects `8080`.
+The root Dockerfile builds `frontend` with pnpm, copies the React `dist` into the Python image, installs `backend/requirements.txt`, copies `backend/` including `backend/question_bank/`, and starts the FastAPI application. The root validator is not a production runtime dependency and is not copied into the image. The hosting platform supplies `PORT`; CloudBase currently expects `8080`.
 
 FastAPI serves:
 
@@ -92,6 +92,8 @@ Other backend settings include the existing LLM/STT provider variables, CORS, up
 - Runtime logs and diagnostics must not contain credentials, complete environment dumps, recordings, full user answers, or transcripts.
 
 ## CloudBase release checklist
+
+This question-bank package migration changes the Docker runtime file layout. After the PR merges, create a new CloudBase version from the exact `main` merge commit while retaining the current known-good version. Repository, branch, port, Secret, environment-variable, and Provider settings remain unchanged.
 
 Before a human-triggered deployment:
 

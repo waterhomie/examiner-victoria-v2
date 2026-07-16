@@ -41,9 +41,9 @@ The GitHub repository was renamed from `waterhomie/examiner-victoria-v2` to `wat
 - frontend-held sessions passed through API requests
 - no account system or application database
 
-Active React code lives in `frontend/`, active FastAPI code lives in `backend/`, and current PowerShell tooling lives in `scripts/`. The production entrypoint is `backend.app:app`, and the built frontend is served from `frontend/dist`.
+Active React code lives in `frontend/`, active FastAPI code and question-bank data live in `backend/`, and current PowerShell tooling lives in `scripts/`. The question bank is exposed by `backend/question_bank/`; the production entrypoint is `backend.app:app`, and the built frontend is served from `frontend/dist`.
 
-Phase 1 (runtime paths) and Phase 3 (scripts and active documents) are complete. Phase 2 question-bank relocation remains deferred pending a separate cost-benefit decision; the three root question-bank files remain unchanged.
+Phase 0 audit, Phase 1 runtime paths, Phase 3 scripts/documents, and Phase 2 question-bank packaging are complete. The root `validate_question_bank.py` remains the stable validation command; no further repository-structure refactor is currently planned.
 
 ## Deployment and providers
 

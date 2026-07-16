@@ -71,9 +71,20 @@ backend/
     Part 3 dynamic follow-up generation, fallback questions, Part 3 question
     count rules, and single-question extraction from model output.
 
+  question_bank/
+    __init__.py
+      Explicit stable exports for the backend question-bank package.
+
+    catalog.py
+      Curated app cue cards and the combined current question-bank catalog.
+
+    pdf_recall.py
+      Candidate-recall Part 1, Part 2, and Part 3 source data.
+
   question_bank_service.py
     Part 1 topic selection, Part 2 cue-card selection, question-bank counts,
-    practice-option lists, and app-level fallback cue cards.
+    practice-option lists, and app-level fallback cue cards. It imports the
+    backend package directly and does not modify `sys.path`.
 
   report_service.py
     Final report generation, rule-based fallback report, learning summary,
@@ -101,7 +112,7 @@ backend/
 - Model name, base URL, API key loading, provider client: `ai_provider.py`.
 - Audio transcription or Victoria voice playback: `audio_services.py`.
 - Spoken correction or natural-answer upgrade rules: `feedback_service.py`.
-- Cue cards, Part 1 topic choices, question-bank counts: `question_bank_service.py`.
+- Question-bank source data and exports: `question_bank/`; selection, app fallback cards, and counts: `question_bank_service.py`.
 - Final report format or scoring-summary fallback: `report_service.py`.
 - Mobile performance monitoring or telemetry summaries: `telemetry_service.py`
   plus the `/api/telemetry` routes in `routes/telemetry.py`.
@@ -148,14 +159,15 @@ than in the API shell. For example:
 - "Audio upload fails or TTS is slow" belongs in `audio_services.py` and only
   touches `app.py` if request validation or API response shape changes.
 
-## Refactor direction
+## Structure refactor completion
 
-The next safe backend splits are:
+The planned version-neutral repository migration is complete:
 
-1. Rename service files to the shorter plan names only if the current names
-   become confusing in day-to-day development. Do not rename them just for
-   aesthetics; import churn creates avoidable risk.
-2. If `exam_flow_service.py` grows again, split Part 1, Part 2, and Part 3
-   handlers into focused files only after adding narrower flow tests.
+- runtime source uses top-level `frontend/` and `backend/`;
+- operational tooling uses top-level `scripts/`;
+- current operating documentation uses `docs/`;
+- question-bank data uses `backend/question_bank/` with explicit package exports;
+- root `validate_question_bank.py` remains the stable project-level verification command;
+- `v2/` contains frozen historical evidence only.
 
-Do these one at a time and run `smoke_test.py` after each step.
+No further structural refactor is currently planned. Future work should be driven by user feedback, product value, reliability, and portfolio evidence rather than directory aesthetics.

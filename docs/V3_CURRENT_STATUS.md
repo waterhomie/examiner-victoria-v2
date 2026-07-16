@@ -4,7 +4,7 @@
 
 ## 1. Status date
 
-This status was updated on **2026-07-16** after V3 promotion to `main`, the main-based CloudBase verification reported by the project owner, the V3 Beta tag and Pre-release, the GitHub repository rename, Phase 1 runtime-path neutralization, and Phase 3 tooling/document neutralization.
+This status was updated on **2026-07-16** after V3 promotion to `main`, the main-based CloudBase verification reported by the project owner, the V3 Beta tag and Pre-release, the GitHub repository rename, Phase 1 runtime-path neutralization, Phase 3 tooling/document neutralization, and the Phase 2 backend question-bank package migration implemented by the current change.
 
 ## 2. Product stage
 
@@ -33,12 +33,13 @@ The current GitHub repository is `waterhomie/examiner-victoria`. Its former name
 
 The active React application is in top-level `frontend/`, and the active FastAPI application is in top-level `backend/`. The production entrypoint is `backend.app:app`, and FastAPI serves the build from `frontend/dist`. The canonical local worktree folder keeps its historical name.
 
-Current PowerShell tooling is in top-level `scripts/`, and current run/deployment guides are in `docs/`. The `v2/` directory now contains frozen historical evidence only. Phase 1 and Phase 3 are complete; Phase 2 question-bank module migration remains deferred, so the root question-bank files stay unchanged.
+Current PowerShell tooling is in top-level `scripts/`, current run/deployment guides are in `docs/`, and question-bank data is in `backend/question_bank/`. The root `validate_question_bank.py` remains the stable validation entry, while the former root data modules are removed. The `v2/` directory contains frozen historical evidence only. Phase 0, Phase 1, Phase 3, and Phase 2 are complete, ending the planned repository-structure migration.
 
 ## 5. Current architecture
 
 - Frontend: React 19, Vite, and pnpm in `frontend/`
 - Backend: FastAPI and Pydantic in `backend/` (`backend.app:app`)
+- Question bank: explicit package exports and source data in `backend/question_bank/`, with root `validate_question_bank.py` retained
 - Packaging: one Docker container
 - Serving model: FastAPI serves the built frontend and `/api` routes
 - Sessions: held by the frontend and passed through API requests
@@ -108,7 +109,7 @@ Provider credentials are configured only through the deployment secret store. Do
 - renamed the GitHub repository to `waterhomie/examiner-victoria`
 - retired the merged feedback, release-consolidation, and V3 integration branches
 - completed Phase 1 runtime-path neutralization and Phase 3 script/active-document neutralization
-- retained the root question-bank modules unchanged while Phase 2 remains deferred
+- moved the curated and PDF-recall question-bank modules into `backend/question_bank/` without changing data, order, counts, API behavior, Prompt, or Provider behavior
 
 ## 11. Testing status
 
@@ -179,7 +180,7 @@ The GitHub repository was renamed on 2026-07-13:
 - current Git remote and documentation links use the new repository name
 - GitHub may redirect former URLs for historical compatibility
 - local worktree folder names were not changed
-- active runtime and tooling use `frontend/`, `backend/`, and `scripts/`; current operating guides use `docs/`; `v2/` contains frozen historical evidence only; root question-bank modules remain pending the deferred Phase 2 decision
+- active runtime and tooling use `frontend/`, `backend/`, `backend/question_bank/`, and `scripts/`; current operating guides use `docs/`; `v2/` contains frozen historical evidence only; the planned three-phase structure migration is complete
 
 ## 17. Documentation authority
 

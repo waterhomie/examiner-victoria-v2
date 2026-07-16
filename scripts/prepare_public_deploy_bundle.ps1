@@ -36,8 +36,6 @@ function Test-ShouldIncludeBundlePath {
         "deploy",
         "railway.json",
         "render.yaml",
-        "question_bank.py",
-        "pdf_recall_question_bank.py",
         "validate_question_bank.py",
         "backend",
         "frontend",

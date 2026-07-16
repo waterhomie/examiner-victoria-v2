@@ -10,8 +10,8 @@
 - Frozen V2 evidence: tag `v2.0.0`, commit `d592900e29c0cdcc4576d884c178991deea7013c`
 - CloudBase source branch: `main`
 - The former `v3/domestic-public-beta` integration branch is retired
-- Active paths: `frontend/`, `backend/`, `scripts/`, `docs/`, `frontend/dist`, and `backend.app:app`
-- Deferred Phase 2: root question-bank modules remain in place pending a separate cost-benefit decision; `v2/` is frozen historical evidence only
+- Active paths: `frontend/`, `backend/`, `backend/question_bank/`, `scripts/`, `docs/`, `frontend/dist`, and `backend.app:app`
+- Structure migration: Phase 0, Phase 1, Phase 3, and Phase 2 are complete; root `validate_question_bank.py` remains stable and `v2/` is frozen historical evidence only
 
 ## Normal task lifecycle
 
