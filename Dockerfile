@@ -30,7 +30,6 @@ RUN python -m pip install --no-cache-dir --upgrade pip
 COPY backend/requirements.txt /tmp/backend-requirements.txt
 RUN python -m pip install --no-cache-dir -r /tmp/backend-requirements.txt
 
-COPY question_bank.py pdf_recall_question_bank.py validate_question_bank.py ./
 COPY backend ./backend
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 

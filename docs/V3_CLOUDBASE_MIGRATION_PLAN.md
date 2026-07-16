@@ -26,7 +26,7 @@
 - 两轮测试中，`POST /api/transcribe`、`POST /api/answer`、`POST /api/tts` 均返回 `200 OK`。
 - 此前的 TTS `502` 与 “Voice is temporarily unavailable” 已消失；文字降级仍作为异常 fallback 保留。
 - 仓库 Phase 1 运行路径已调整为 `frontend/`、`backend/`、`frontend/dist` 与 `backend.app:app`；CloudBase 服务名、来源仓库、`main` 分支和端口不变。
-- Phase 1 运行路径与 Phase 3 脚本/活动文档中性化已完成；当前工具位于 `scripts/`，活动运行与部署文档位于 `docs/`，`v2/` 只保留冻结历史证据。Phase 2 题库迁移继续暂缓。
+- Phase 1 运行路径、Phase 3 脚本/活动文档中性化及当前变更中的 Phase 2 backend 题库 package 迁移均已完成；当前题库位于 `backend/question_bank/`，根 validator 保留，`v2/` 只保留冻结历史证据。计划内结构迁移到此结束。
 
 ## 2. 已验证的 Railway 国内访问问题
 

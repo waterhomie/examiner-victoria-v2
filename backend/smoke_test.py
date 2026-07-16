@@ -16,6 +16,10 @@ import backend.audio_services as audio_services
 import backend.exam_flow_service as exam_flow_service
 import backend.feedback_service as feedback_service
 import backend.part3_service as part3_service
+import backend.question_bank as question_bank_package
+import backend.question_bank.catalog as question_bank_catalog
+import backend.question_bank.pdf_recall as question_bank_pdf_recall
+import backend.question_bank_service as question_bank_service
 import backend.report_service as report_service
 import backend.routes.audio as audio_routes
 from backend.app import app
@@ -756,6 +760,19 @@ def main() -> None:
     assert config.ROOT_DIR == Path(__file__).resolve().parents[1], config.ROOT_DIR
     assert config.DEFAULT_FRONTEND_DIST == config.ROOT_DIR / "frontend" / "dist"
     assert config.BACKEND_ENV_FILE == config.ROOT_DIR / "backend" / ".env"
+    assert question_bank_package.EXTRA_CUE_CARDS is question_bank_catalog.EXTRA_CUE_CARDS
+    assert question_bank_package.PDF_CUE_CARDS is question_bank_pdf_recall.PDF_CUE_CARDS
+    assert question_bank_package.PART1_SECONDARY_TOPICS is question_bank_package.PDF_PART1_SECONDARY_TOPICS
+    assert not (config.ROOT_DIR / "question_bank.py").exists()
+    assert not (config.ROOT_DIR / "pdf_recall_question_bank.py").exists()
+    question_bank_service_source = Path(question_bank_service.__file__).read_text(encoding="utf-8")
+    assert "sys.path" not in question_bank_service_source
+    question_bank_summary = question_bank_service.get_question_bank_summary()
+    assert question_bank_summary["part1_topics"] == 32, question_bank_summary
+    assert question_bank_summary["part1_total_questions"] == 152, question_bank_summary
+    assert question_bank_summary["part2_extra_cards"] == 70, question_bank_summary
+    assert question_bank_summary["part2_total_cards"] == 73, question_bank_summary
+    assert question_bank_summary["part3_reference_questions"] == 383, question_bank_summary
     assert app.title == "Examiner Victoria API", app.title
     client = TestClient(app)
     originals = install_deterministic_ai_stubs()

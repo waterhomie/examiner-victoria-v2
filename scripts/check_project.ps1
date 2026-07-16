@@ -56,6 +56,9 @@ $requiredStructureFiles = @(
     ".\backend\feedback_service.py",
     ".\backend\part3_service.py",
     ".\backend\question_bank_service.py",
+    ".\backend\question_bank\__init__.py",
+    ".\backend\question_bank\catalog.py",
+    ".\backend\question_bank\pdf_recall.py",
     ".\backend\report_service.py",
     ".\backend\routes\answer.py",
     ".\backend\routes\audio.py",
@@ -69,6 +72,30 @@ foreach ($structureFile in $requiredStructureFiles) {
     if (-not (Test-Path -LiteralPath $structureFile)) {
         throw "Required structure file is missing: $structureFile"
     }
+}
+
+$legacyQuestionBankFile = Join-Path $repoRoot "question_bank.py"
+$legacyPdfRecallFile = Join-Path $repoRoot "pdf_recall_question_bank.py"
+if ((Test-Path -LiteralPath $legacyQuestionBankFile) -or (Test-Path -LiteralPath $legacyPdfRecallFile)) {
+    throw "Legacy root question-bank modules must not exist."
+}
+$questionBankServiceSource = Get-Content -LiteralPath ".\backend\question_bank_service.py" -Raw
+if ($questionBankServiceSource -match "sys\.path" -or $questionBankServiceSource -match "from\s+question_bank" -or $questionBankServiceSource -match "import\s+question_bank") {
+    throw "backend/question_bank_service.py must use the backend package without sys.path injection or root imports."
+}
+$activeQuestionBankPythonFiles = @(
+    (Get-ChildItem -LiteralPath ".\backend" -Filter "*.py" -File -Recurse),
+    (Get-Item -LiteralPath ".\validate_question_bank.py")
+)
+foreach ($activeQuestionBankPythonFile in $activeQuestionBankPythonFiles) {
+    $activeQuestionBankSource = Get-Content -LiteralPath $activeQuestionBankPythonFile.FullName -Raw
+    if ($activeQuestionBankSource -match "(?m)^\s*(from|import)\s+(question_bank|pdf_recall_question_bank)\b") {
+        throw "Active Python file imports a legacy root question-bank module: $($activeQuestionBankPythonFile.FullName)"
+    }
+}
+$dockerfileSource = Get-Content -LiteralPath ".\Dockerfile" -Raw
+if ($dockerfileSource -match "(?m)^COPY\s+.*(question_bank\.py|pdf_recall_question_bank\.py)") {
+    throw "Dockerfile must not copy legacy root question-bank modules."
 }
 
 $requiredCurrentFiles = @(
@@ -253,8 +280,9 @@ Invoke-ProjectNative $python -m py_compile `
     .\backend\routes\telemetry.py `
     .\backend\app.py `
     .\backend\smoke_test.py `
-    .\question_bank.py `
-    .\pdf_recall_question_bank.py `
+    .\backend\question_bank\__init__.py `
+    .\backend\question_bank\catalog.py `
+    .\backend\question_bank\pdf_recall.py `
     .\validate_question_bank.py
 
 $scriptFiles = @(

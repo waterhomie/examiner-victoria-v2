@@ -1,6 +1,6 @@
-"""Curated IELTS Speaking question bank used by the Streamlit app."""
+"""Curated IELTS Speaking question-bank catalog."""
 
-from pdf_recall_question_bank import (
+from .pdf_recall import (
     PART1_STUDY_QUESTIONS,
     PART1_WORK_QUESTIONS,
     PDF_CUE_CARDS,

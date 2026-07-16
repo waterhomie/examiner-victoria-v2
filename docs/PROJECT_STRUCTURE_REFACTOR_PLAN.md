@@ -2,7 +2,7 @@
 
 > Phase 0 audit and design only. Baseline: `main` commit `3b1c4f3916491e8b2320ac1ae64e1fb8a68b9cbd` (PR #22 merge), audited on 2026-07-15. This document does not move source files or change application behavior.
 
-> **Implementation status (2026-07-16):** Phase 0 is complete; Phase 1 was completed by PR #24 and merge commit `732270eb698b1f952ec90c4d3abd9ae0308dd548`; Phase 3 is implemented by the current change. The approved Phase 3 scope moved all 15 scripts and the two current run/deployment guides. The remaining V2 API, checklist, mobile QA, template, and completion-audit files were classified as frozen historical evidence and remain under `v2/`. Phase 2 question-bank relocation is deferred pending a separate cost-benefit decision.
+> **Implementation status (2026-07-16):** Phase 0 is complete; Phase 1 was completed by PR #24; Phase 3 was completed by PR #25 and merge commit `2f031069decfca8979fcf41a9607a991617de884`; Phase 2 is implemented by the current change. The curated and PDF-recall modules now live in `backend/question_bank/`, the root validator remains stable, and all pre/post data fingerprints match. The planned repository-structure migration is complete; no further structural refactor is currently planned.
 
 ## 1. Executive decision
 
@@ -11,7 +11,7 @@
 Use three separately reviewable implementation phases:
 
 1. **Phase 1 — core runtime paths:** move `v2/frontend` and `v2/backend`; update Python entrypoints, Docker paths, runtime metadata, deployment checks, and the minimum current documentation needed to keep the build operable.
-2. **Phase 2 — question-bank package (optional and deferred):** after Phase 1 is deployed and stable, move the two executable question-bank modules into `backend/question_bank/`; keep the root validator entrypoint.
+2. **Phase 2 — question-bank package (implemented by the current change):** move the two executable question-bank modules into `backend/question_bank/`; keep the root validator entrypoint.
 3. **Phase 3 — scripts and active documentation:** move/neutralize scripts, relocate active `v2/` documents, and leave only frozen V2 evidence under `v2/`.
 
 The expected risk is **medium-high for Phase 1**, **medium for Phase 2**, and **medium for Phase 3**. The risk comes from path coupling, not from intended product changes. A one-shot PR would combine 115 affected paths, CloudBase build changes, local-run changes, and an optional data-module move; that is unnecessarily hard to review and roll back.
@@ -704,11 +704,11 @@ Scope:
 
 Gate: no active runtime/search reference may require `v2/frontend`, `v2/backend`, or `v2.backend`; historical documents are allowlisted.
 
-### Phase 2 — question bank and data organization (deferred)
+### Phase 2 — question bank and data organization (implemented by this change)
 
-Start only after Phase 1 CloudBase acceptance. Move the two Python bank modules into `backend/question_bank/`, keep the validator at root, and update imports/copy/check rules. Verify identical question-bank counts and deterministic practice options. If there is no concrete maintenance benefit after Phase 1, Phase 2 may remain deferred indefinitely.
+Phase 2 is implemented by the current change after Phase 1 CloudBase acceptance. It moves the two Python bank modules into `backend/question_bank/`, keeps the validator at root, updates imports/copy/check rules, and verifies identical object fingerprints, counts, and deterministic practice-option structure.
 
-### Phase 3 — scripts, tests, and active documentation (implemented by this change)
+### Phase 3 — scripts, tests, and active documentation (completed by PR #25)
 
 1. Stop any old local stack/tunnel.
 2. Move all 15 scripts to root `scripts/`.
@@ -849,13 +849,16 @@ NO-GO if:
 - no tag, Release, or historical-record rewrite;
 - no runtime migration in this audit PR.
 
-## 22. Current structural next step
+## 22. Structure migration completed
 
-Phase 1 and Phase 3 are complete. Phase 2 question-bank relocation remains optional and deferred; it must not begin without a separate cost-benefit decision and explicit implementation authorization.
+Phase 0, Phase 1, Phase 3, and Phase 2 are complete. The final maintained structure uses:
 
-Until that decision changes:
+- `frontend/` for React source;
+- `backend/` for FastAPI source;
+- `backend/question_bank/` for question-bank data and explicit package exports;
+- root `validate_question_bank.py` as the stable verification command;
+- `scripts/` for active tooling;
+- `docs/` for current operating documentation;
+- `v2/` for frozen historical evidence only.
 
-- keep `question_bank.py`, `pdf_recall_question_bank.py`, and `validate_question_bank.py` at repository root;
-- use the current `frontend/`, `backend/`, `scripts/`, and `docs/` paths;
-- treat `v2/` as frozen historical evidence only;
-- do not create a new version-numbered active source tree for a future release.
+No further structural refactor is currently planned. Future work should return to user feedback, product iteration, reliability, and portfolio evidence.

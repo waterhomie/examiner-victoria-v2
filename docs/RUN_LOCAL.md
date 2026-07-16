@@ -69,7 +69,10 @@ Run the complete current project check from the repository root:
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\check_project.ps1 -SkipInstall
 ```
 
+The root `validate_question_bank.py` command validates the data exported by `backend/question_bank/`; the backend no longer relies on a root-module `sys.path` workaround.
+
 The automated checks use deterministic provider stubs and must not call real LLM, STT, or TTS services.
+
 ## iPhone microphone note
 
 The local LAN URL is useful for layout and text testing. iPhone Safari still requires HTTPS before it can reliably request microphone access, so voice recording on phone needs an HTTPS tunnel or public deployment.
