@@ -29,6 +29,9 @@
 - Users need help deciding what to say as well as help correcting how they say it.
 - Personalized answer inspiration must use facts voluntarily supplied by the user and must never invent personal experiences.
 - V3 Beta should now classify feedback and run targeted validation rather than immediately implementing every request.
+- Product quality needs an explicit evaluation set covering response speed, feedback accuracy, scoring consistency, user-level differentiation, and failure recovery.
+- The product should not claim superiority over general AI or mature IELTS tools before same-task benchmarking and user validation.
+- Recall-based question banks require source metadata, versioning, quality checks, and a visible non-official content boundary.
 
 ### V3 Beta Round 1 tester signals
 
@@ -57,6 +60,22 @@
 | F-014 | T003 | Wants a Chinese-to-English drill in which the system supplies Chinese ideas and then corrects the user's English. | This is a distinct training mode rather than an extension of the current IELTS Part 1/2/3 flow. | No dedicated Chinese-to-English drill exists, and acoustic pronunciation scoring remains outside current capability. | Record as a separate mode exploration and wait for repeated demand; do not add it to the stable V3 Beta flow now. | Roadmap | New mode idea |
 | F-015 | T004 | Wants corrected or improved wording to play directly as audio. | Learners want to hear natural delivery, but many permanent playback buttons could make feedback visually heavy. | TTS plays Victoria's next question or system speech; direct playback for correction, expression tip, or natural version is not implemented. | Treat tap-to-play correction text as a provisional interaction direction and validate discoverability before implementation. | P1 | Proposed, not implemented |
 | F-016 | T005 | Wants answer ideas and material based on the user's own topics and personal experiences. | The product must distinguish correction, generic examples, idea prompts, personalized material, and complete ghostwritten answers. | Topic and cue-card selection plus answer-level language feedback exist; structured profiles, personalized-material flow, accounts, and long-term personal data storage do not. | Explore an optional Practice-only, session-level idea flow based only on facts the user voluntarily provides; never invent experiences or default to complete scripts. | P2 | New request, needs validation |
+
+## 3A. External Review Signals
+
+| ID | External review signal | Product issue | Product decision | Priority | Status |
+|---|---|---|---|---|---|
+| ER-001 | 不能只凭开发者主观感觉判断产品“好用”，需要建立测试集和评价标准。 | 当前缺少统一质量基准，无法证明反馈准确性、评分合理性和异常场景稳定性。 | 建立覆盖不同用户水平、正常流程和异常输入的最小测试集，并记录响应时间、流程完成率、反馈准确性、评分一致性和异常恢复结果。 | P0 | Needs implementation |
+| ER-002 | 应使用初学者、中等水平、高水平、偏题和无效回答测试同一道题。 | 当前测试不足以证明系统能够合理区分不同能力水平。 | 建立分层回答样本，对同题反馈和评分进行横向比较；后续考虑加入人工教师或可信评分样例作为参考。 | P0 | Needs validation |
+| ER-003 | “比 ChatGPT Live 或大而泛的产品更好”目前缺少证据。 | 当前差异化主要依赖“更垂直、更方便”的主观判断，缺少同题对比和用户完成数据。 | 暂不宣称效果优于成熟产品；使用统一任务比较通用语音 AI、雅思垂直产品和 Examiner Victoria，重点验证零配置入口、流程稳定性、反馈结构和复盘效率。 | P0 | Needs benchmark |
+| ER-004 | 不能默认“小而垂直”自然成立，需要研究大厂或成熟产品为什么没有重点覆盖同样需求。 | 当前尚未区分真实需求缺口、商业优先级、技术成本和已有竞品覆盖程度。 | 增加竞品与市场假设研究，验证目标用户是否持续需要该能力、是否愿意使用或付费，以及现有产品已经覆盖到什么程度。 | P1 | Needs research |
+| ER-005 | 回忆版雅思题库可能存在错误、不准确或版本冲突。 | 当前题库导入前缺少来源记录、去重、校验和异常标记。 | 增加来源、日期、版本、非官方标记、格式检查、去重、人工抽查和错误反馈机制。 | P1 | Needs design |
+| ER-006 | Practice 与 Mock 的区别容易被理解为单纯的界面差异。 | 两种模式的学习目标、反馈时机和使用体验尚未被足够清晰地表达和验证。 | 保留共享考试流程，但明确：<br>Practice 面向过程学习，显示记录和即时反馈<br>Mock 面向考试状态，纯语音、不显示逐轮反馈，结束后统一评分和复盘<br>继续验证用户能否准确理解模式差异。 | P1 | Cross-reference F-001 |
+
+- Full review record: [`docs/research/2026-07-16_interview_product_feedback.md`](research/2026-07-16_interview_product_feedback.md)
+- This section records only actionable product signals and product decisions.
+- Career advice, corrections of technical concepts, and interview questions are not counted as product feedback.
+- The reviewer is not an additional tester, and this review does not change the anonymized tester count.
 
 ## 4. Detailed Decisions
 
