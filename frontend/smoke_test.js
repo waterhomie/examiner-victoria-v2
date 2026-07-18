@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { fetchRuntimeDiagnostics, healthCheck, sendTelemetryEvent, synthesizeSpeech, TTS_TIMEOUT_MS } from "./src/api.js";
+import { fetchRuntimeDiagnostics, healthCheck, sendAnswer, sendTelemetryEvent, synthesizeSpeech, TTS_TIMEOUT_MS } from "./src/api.js";
 import { browserSpeechTranscriptionIsSupported } from "./src/browserSpeechTranscriber.js";
 import { appReducer } from "./src/state/appReducer.js";
 import {
+  answerFailed,
   answerRequested,
   answerSucceeded,
   errorSet,
@@ -21,7 +22,7 @@ import {
   getPageEnvironment,
   getRecordingSupport,
 } from "./src/utils/runtimeDiagnostics.js";
-import { VOICE_UNAVAILABLE_MESSAGE, friendlyError } from "./src/utils/errors.js";
+import { INVALID_ANSWER_MESSAGE, VOICE_UNAVAILABLE_MESSAGE, friendlyError } from "./src/utils/errors.js";
 
 function setNavigator(value) {
   Object.defineProperty(globalThis, "navigator", {
@@ -117,6 +118,21 @@ function assertReducerFlow() {
   state = appReducer(state, answerSucceeded(createSession({ phase: "part1" })));
   assert.equal(state.busy, "");
   assert.equal(state.session.phase, "part1");
+}
+
+function assertInvalidAnswerFailurePreservesSession() {
+  const session = createSession({
+    current_question: "Do you like music?",
+    phase: "part1",
+  });
+  let state = { ...createInitialAppState(), draft: "... 123 ...", session };
+  state = appReducer(state, answerRequested());
+  state = appReducer(state, answerFailed(INVALID_ANSWER_MESSAGE));
+  assert.equal(state.busy, "");
+  assert.equal(state.error, INVALID_ANSWER_MESSAGE);
+  assert.equal(state.session, session);
+  assert.equal(state.session.current_question, "Do you like music?");
+  assert.equal(state.session.candidate_answers.length, 0);
 }
 
 function assertStageCardSelector() {
@@ -228,6 +244,18 @@ async function assertApiErrorMapping() {
     throw new Error("network down");
   };
   await assert.rejects(healthCheck(), /not reachable/);
+
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 422,
+    statusText: "Unprocessable Entity",
+    json: async () => ({ detail: INVALID_ANSWER_MESSAGE }),
+  });
+  await assert.rejects(
+    sendAnswer({ session: createSession(), answer: "... 123 ...", source: "text", duration: null }),
+    { message: INVALID_ANSWER_MESSAGE },
+  );
+  assert.equal(friendlyError(new Error(INVALID_ANSWER_MESSAGE), "fallback"), INVALID_ANSWER_MESSAGE);
 }
 
 async function assertTtsFailureMapping() {
@@ -426,6 +454,7 @@ assertCapabilities();
 assertMockModeSelectors();
 assertChatBottomAnchorContracts();
 assertReducerFlow();
+assertInvalidAnswerFailurePreservesSession();
 assertTtsFailurePreservesAnswerState();
 assertStageCardSelector();
 assertTelemetryFailureIsNonBlocking();

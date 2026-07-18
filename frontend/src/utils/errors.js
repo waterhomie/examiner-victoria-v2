@@ -1,4 +1,5 @@
 export const VOICE_UNAVAILABLE_MESSAGE = "Voice is temporarily unavailable. Continue with the text shown above.";
+export const INVALID_ANSWER_MESSAGE = "No clear answer was detected. Please answer in words or try recording again.";
 
 export function friendlyError(err, fallback) {
   const message = err?.message || "";
@@ -10,6 +11,9 @@ export function friendlyError(err, fallback) {
   }
   if (/recording is too short|too short/i.test(message)) {
     return "That recording was too short. Tap again and answer in a complete sentence.";
+  }
+  if (/no clear answer|answer in words/i.test(message)) {
+    return INVALID_ANSWER_MESSAGE;
   }
   if (/too many requests/i.test(message)) {
     return "Too many requests. Please wait a moment before trying again.";
