@@ -66,13 +66,14 @@ def process_answer(
     correction = None
     expression_tip = None
     upgraded_answer = None
+    feedback_available = True
     include_upgrade = (
         session.practice_mode
         and session.answer_expansion_mode
         and phase in {"part1", "part2_followup", "part3"}
     )
     if session.practice_mode and phase != "identity":
-        correction, expression_tip, upgraded_answer = coach_spoken_answer(
+        correction, expression_tip, upgraded_answer, feedback_available = coach_spoken_answer(
             previous_question,
             answer,
             include_upgrade,
@@ -103,7 +104,7 @@ def process_answer(
     else:
         session.current_question = next_content
 
-    reply = build_reply(correction, expression_tip, upgraded_answer, next_content)
+    reply = build_reply(correction, expression_tip, upgraded_answer, next_content, feedback_available)
     assistant_message = ChatMessage(role="assistant", content=reply, phase=session.phase)
     session.messages.append(assistant_message)
     return session, assistant_message, next_content, start_prep_timer

@@ -159,6 +159,58 @@ def assert_invalid_answer_recovery(client: TestClient, session: dict) -> None:
     assert all(item["answer"] != "... 123 ..." for item in recovered_session["candidate_answers"]), recovered_session
 
 
+def assert_feedback_availability_states(client: TestClient) -> None:
+    original_call_model = feedback_service.call_model
+    try:
+        def corrected_call_model(_messages: list[dict[str, str]], *_args, **_kwargs) -> str:
+            return (
+                "CORRECTION: Use makes instead of make.\n"
+                "EXPRESSION_TIP: NONE\n"
+                "UPGRADED_ANSWER: NONE"
+            )
+
+        feedback_service.call_model = corrected_call_model
+        corrected_session = start_api_session(client, practice_type="part1")
+        corrected_payload = answer_api(client, corrected_session, "Music make me relax.")
+        corrected_content = corrected_payload["assistant_message"]["content"]
+        assert "**Quick correction:**" in corrected_content, corrected_content
+        assert feedback_service.FEEDBACK_UNAVAILABLE_MESSAGE not in corrected_content, corrected_content
+
+        def no_correction_call_model(_messages: list[dict[str, str]], *_args, **_kwargs) -> str:
+            return (
+                "CORRECTION: NONE\n"
+                "EXPRESSION_TIP: NONE\n"
+                "UPGRADED_ANSWER: NONE"
+            )
+
+        feedback_service.call_model = no_correction_call_model
+        natural_session = start_api_session(client, practice_type="part1")
+        natural_payload = answer_api(client, natural_session, "Yes, music helps me relax.")
+        natural_content = natural_payload["assistant_message"]["content"]
+        assert "**Quick correction:**" not in natural_content, natural_content
+        assert feedback_service.FEEDBACK_UNAVAILABLE_MESSAGE not in natural_content, natural_content
+
+        def broken_call_model(_messages: list[dict[str, str]], *_args, **_kwargs) -> str:
+            raise RuntimeError("deterministic feedback failure")
+
+        feedback_service.call_model = broken_call_model
+        failed_session = start_api_session(client, practice_type="part1")
+        original_failed_session = deepcopy(failed_session)
+        previous_question = failed_session["current_question"]
+        failed_payload = answer_api(client, failed_session, "Yes, I listen to music every day.")
+        failed_content = failed_payload["assistant_message"]["content"]
+        recovered_session = failed_payload["session"]
+        assert failed_session == original_failed_session, failed_session
+        assert feedback_service.FEEDBACK_UNAVAILABLE_MESSAGE in failed_content, failed_content
+        assert "waking up" not in failed_content.lower(), failed_content
+        assert recovered_session["session_id"] == original_failed_session["session_id"], recovered_session
+        assert recovered_session["candidate_answers"][-1]["answer"] == "Yes, I listen to music every day.", recovered_session
+        assert recovered_session["current_question"] != previous_question, recovered_session
+        assert failed_payload["spoken_text"] == recovered_session["current_question"], failed_payload
+    finally:
+        feedback_service.call_model = original_call_model
+
+
 def assert_direct_practice_part1(
     client: TestClient,
     session: dict,
@@ -1261,6 +1313,7 @@ def main() -> None:
     assert_mock_mode_starts_cleanly(client)
     assert_part3_hybrid_strategy(client, chosen_card)
     assert_invalid_answer_recovery(client, session)
+    assert_feedback_availability_states(client)
 
     too_long_answer = client.post(
         "/api/answer",

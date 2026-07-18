@@ -7,6 +7,7 @@ from .ai_provider import call_model
 
 
 LONG_ANSWER_WORD_THRESHOLD = 45
+FEEDBACK_UNAVAILABLE_MESSAGE = "Feedback is temporarily unavailable. Continue with the next question below."
 
 
 def clean_none(value: str | None) -> str | None:
@@ -85,10 +86,10 @@ def coach_spoken_answer(
     question: str,
     answer: str,
     include_upgrade: bool,
-) -> tuple[str | None, str | None, str | None]:
+) -> tuple[str | None, str | None, str | None, bool]:
     spoken_words = re.findall(r"[A-Za-z']+", answer)
     if not spoken_words:
-        return None, None, None
+        return None, None, None, True
 
     answer_length = "LONG" if len(spoken_words) >= LONG_ANSWER_WORD_THRESHOLD else "SHORT"
     prompt = f"""
@@ -130,7 +131,7 @@ Answer: {answer}
             ]
         )
     except Exception:
-        return None, None, None
+        return None, None, None, False
 
     correction = extract_feedback_field(result, "CORRECTION")
     expression_tip = extract_feedback_field(result, "EXPRESSION_TIP")
@@ -139,7 +140,7 @@ Answer: {answer}
         expression_tip = None
     if not should_show_upgraded_answer(answer, upgraded_answer, correction, expression_tip):
         upgraded_answer = None
-    return correction, expression_tip, upgraded_answer
+    return correction, expression_tip, upgraded_answer, True
 
 
 def build_reply(
@@ -147,8 +148,11 @@ def build_reply(
     expression_tip: str | None,
     upgraded_answer: str | None,
     next_content: str,
+    feedback_available: bool = True,
 ) -> str:
     sections = []
+    if not feedback_available:
+        sections.append(FEEDBACK_UNAVAILABLE_MESSAGE)
     if correction:
         sections.append(f"**Quick correction:** {correction}")
     if expression_tip:
