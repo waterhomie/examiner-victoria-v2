@@ -13,6 +13,11 @@ from ..schemas import AnswerRequest, AnswerResponse
 
 router = APIRouter(prefix="/api", tags=["answer"])
 logger = logging.getLogger("examiner_victoria")
+INVALID_ANSWER_MESSAGE = "No clear answer was detected. Please answer in words or try recording again."
+
+
+def answer_has_language_content(answer: str) -> bool:
+    return any(character.isalpha() for character in answer)
 
 
 @router.post("/answer", response_model=AnswerResponse)
@@ -22,6 +27,8 @@ def answer_question(request_body: AnswerRequest, request: Request) -> AnswerResp
     enforce_payload_limits(answer, len(request_body.session.messages))
     if not answer:
         raise HTTPException(status_code=400, detail="Answer cannot be empty.")
+    if not answer_has_language_content(answer):
+        raise HTTPException(status_code=422, detail=INVALID_ANSWER_MESSAGE)
     started_at = time.perf_counter()
     session, assistant_message, spoken_text, start_prep_timer = process_answer(
         request_body.session,

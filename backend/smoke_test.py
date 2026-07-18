@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from copy import deepcopy
 import os
 from pathlib import Path
 import threading
@@ -21,6 +22,7 @@ import backend.question_bank.catalog as question_bank_catalog
 import backend.question_bank.pdf_recall as question_bank_pdf_recall
 import backend.question_bank_service as question_bank_service
 import backend.report_service as report_service
+import backend.routes.answer as answer_routes
 import backend.routes.audio as audio_routes
 from backend.app import app
 from backend.engine import build_fallback_report, build_session_learning_summary
@@ -124,6 +126,37 @@ def answer_api(
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def assert_invalid_answer_recovery(client: TestClient, session: dict) -> None:
+    original_session = deepcopy(session)
+    invalid_answer = client.post(
+        "/api/answer",
+        json={
+            "session": session,
+            "answer": "... 123 ...",
+            "source": "text",
+            "duration": None,
+        },
+    )
+    assert invalid_answer.status_code == 422, invalid_answer.text
+    assert invalid_answer.json()["detail"] == answer_routes.INVALID_ANSWER_MESSAGE, invalid_answer.text
+    assert session == original_session, session
+
+    valid_short_answer = client.post(
+        "/api/answer",
+        json={
+            "session": session,
+            "answer": "Yes.",
+            "source": "text",
+            "duration": None,
+        },
+    )
+    assert valid_short_answer.status_code == 200, valid_short_answer.text
+    recovered_session = valid_short_answer.json()["session"]
+    assert recovered_session["session_id"] == original_session["session_id"], recovered_session
+    assert recovered_session["candidate_answers"][-1]["answer"] == "Yes.", recovered_session
+    assert all(item["answer"] != "... 123 ..." for item in recovered_session["candidate_answers"]), recovered_session
 
 
 def assert_direct_practice_part1(
@@ -1227,6 +1260,7 @@ def main() -> None:
     assert_focused_practice_flows(client, chosen_topic, chosen_card)
     assert_mock_mode_starts_cleanly(client)
     assert_part3_hybrid_strategy(client, chosen_card)
+    assert_invalid_answer_recovery(client, session)
 
     too_long_answer = client.post(
         "/api/answer",
